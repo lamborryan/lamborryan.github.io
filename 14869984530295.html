@@ -62,7 +62,7 @@ $(document).ready(function(event) {
   
 <form action="http://google.com/search" method="get">
   <fieldset role="search">
-    <input type="hidden" name="q" value="site:" />
+    <input type="hidden" name="q" value="site:www.lamborryan.com" />
     <input class="search" type="text" name="q" results="0" placeholder="Search"/>
   </fieldset>
 </form>
@@ -90,17 +90,36 @@ $(document).ready(function(event) {
 <ul>
 <li>Inmon的企业信息化工程</li>
 <li>Kimball的维度数据仓库</li>
-<li>独立型数据集市
-## Inmon的企业信息化工程</li>
+<li>独立型数据集市</li>
 </ul>
 
-<p>Inmon的体系结构中，先用ER模型(第3范式)建立一个企业级的原子数据仓库，该数据仓库是不对外提供服务的。随后，在原子数据仓库的基础上建立数据集市对外提供服务。数据集市可以采用维度模型。</p>
+<h2 id="toc_1">Inmon的企业信息化工程</h2>
+
+<p>Inmon的体系结构中，先用ER模型(第3范式)建立一个企业级的原子数据仓库，该数据仓库是不对数据仓库应用软件提供服务的，因为原子数据的性质，该仓库尽可能的包括最底层的细节数据。随后，在原子数据仓库的基础上建立数据集市对外提供服务，也就是说数据集市和原子数据仓库是物理分开的。数据集市可以采用维度模型, 不一定非要用ER模型。</p>
 
 <p><img src="media/14869984530295/14869985649523.jpg" alt=""/></p>
 
-<h2 id="toc_1">Kimball的维度数据仓库</h2>
+<h2 id="toc_2">Kimball的维度数据仓库</h2>
 
-<h2 id="toc_2">独立型数据集市</h2>
+<p>相对于Inmon的原子数据仓库， Kimball提出了维度数据仓库。它是根据维度建模的原则来设计的，由一系列的星型模型或者多维数据集组成，并由他们尽可能详尽的细节数据。<br/>
+虽然需要尽可能的避免，但是维度数据仓库可以被分析型系统直接访问。而数据集市是数据仓库中的主题区域，它可以使逻辑的，也可以是报表的子集。</p>
+
+<p><img src="media/14869984530295/14870780143290.jpg" alt=""/></p>
+
+<h2 id="toc_3">独立型数据集市</h2>
+
+<p>独立型数据集市是一个分析型数据存储，并不在企业环境中被设计的，它只关注主题域。数据集市可能采用维度设计，ER关系模型或者其他的设计模型，它能快速，廉价的获得结果。虽然短期内能非常成功，但是当独立型集市支持多个主题时候，它将是灾难。它会导致信息孤岛。</p>
+
+<p><img src="media/14869984530295/14870788989702.jpg" alt=""/></p>
+
+<h2 id="toc_4">体系结构和维度设计</h2>
+
+<p>对比以上三个体系结构:<br/>
+<img src="media/14869984530295/14870794697260.jpg" alt=""/></p>
+
+<p>方法对比:<br/>
+<img src="media/14869984530295/14870795494063.jpg" alt=""/><br/>
+　</p>
 
 			</div>
 
@@ -130,6 +149,9 @@ $(document).ready(function(event) {
 
 	    <p class="meta">
 	    
+	        <a class="basic-alignment left" href="14870800072371.html" 
+	        title="Previous Post: 星型模型与多维数据集">&laquo; 星型模型与多维数据集</a>
+	    
 	    
 	    </p>
 	  </footer>
@@ -142,10 +164,10 @@ $(document).ready(function(event) {
 	  <ul id="recent_posts">
 	  
 	      <li class="post">
-	        <a href="%E6%95%B0%E4%BB%93%E5%BB%BA%E6%A8%A1.html"><strong>数仓建模&nbsp;(1)</strong></a>
+	        <a href="%E6%95%B0%E4%BB%93%E5%BB%BA%E6%A8%A1.html"><strong>数仓建模&nbsp;(2)</strong></a>
 	         <p class="cat-children-p"> 
 	        
-	        	<a href="StarSchema%E7%AC%94%E8%AE%B0.html">StarSchema笔记&nbsp;(1)</a>&nbsp;&nbsp;
+	        	<a href="StarSchema%E7%AC%94%E8%AE%B0.html">StarSchema笔记&nbsp;(2)</a>&nbsp;&nbsp;
 	        
 	         </p> 
 	      </li>
@@ -155,6 +177,12 @@ $(document).ready(function(event) {
 	<section>
 	  <h1>Recent Posts</h1>
 	  <ul id="recent_posts">
+	  
+	      
+		      <li class="post">
+		        <a href="14870800072371.html">星型模型与多维数据集</a>
+		      </li>
+	     
 	  
 	      
 		      <li class="post">

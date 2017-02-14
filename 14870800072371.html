@@ -7,7 +7,7 @@
   <meta charset="utf-8">
   <title>
     
-  Archives - 追风的蓝宝
+  星型模型与多维数据集 - 追风的蓝宝
   
 
   </title>
@@ -77,48 +77,65 @@ $(document).ready(function(event) {
 
 </nav>
   <div id="main">
-    <div id="content">  <div>
-<article role="article">
-  <header>
-    <h1 class="entry-title">Blog Archive</h1>
-  </header>
-	<div id="blog-archives">
-	
-		 
-		  	<h2>2017</h2>
+    <div id="content"> 
+<div>
+	<article class="hentry" role="article">
+	<header>
+			  	<h1 class="entry-title">星型模型与多维数据集</h1>
+				<p class="meta"><time datetime="2017-02-14T21:46:47+08:00" pubdate data-updated="true">2017/2/14</time></p>
+			 </header>
+		  	<div class="entry-content">
+			  	<h2 id="toc_0">1.　维度表特性</h2>
+
+<h3 id="toc_1">1.1 代理键和自然键</h3>
+
+<ul>
+<li>代理建(SK)是在数据仓库中产生的，他表示星型模型中维度表的唯一性，它不具备业务含义，一般用于处理缓慢变化维。</li>
+<li>自然键(NK)是来源于源数据, 有可能一个实体中会有多个自然键，它具有业务含义。</li>
+<li>使用代理键允许数据仓库对源系统发生的变化作出相应，这是因为数据仓库面向的是历史数据的查询，而历史数据的自然键是可以重复的，通过建立代理键来确保维度的唯一性。</li>
+</ul>
+
+<p><img src="media/14870800072371/14870807707669.jpg" alt=""/></p>
+
+<p><strong><em>但是在实际应用中，我们并不会特意去使用代理键。第一点原因是，对于分布式计算系统，不存在事务的概念，对于每个表的记录生成全局唯一的稳定的代理键难度很大，此处稳定指某条记录每次生成的代理键都相同。第二点原因是，使用代理键会大大增加ETL的复杂性，对ETL任务的开发和维护成本很高</em></strong></p>
+
+			</div>
+
 		
-		
-			<article>
-				<h1><a href="14870800072371.html">星型模型与多维数据集</a></h1>
-				<time datetime="2017-02-14T21:46:47+08:00" pubdate><span class='month'>2月</span> <span class='day'>14</span> <span class='year'>2017</span></time>
-				<footer>
-				  <span class="categories">posted in 
-				  
-					    <a class='category' href='StarSchema%E7%AC%94%E8%AE%B0.html'>StarSchema笔记</a>&nbsp;
-				   
-				  </span>
-				</footer>
-			</article>
- 	
-		
-		
-			<article>
-				<h1><a href="14869984530295.html">企业级数据仓库体系结构</a></h1>
-				<time datetime="2017-02-13T23:07:33+08:00" pubdate><span class='month'>2月</span> <span class='day'>13</span> <span class='year'>2017</span></time>
-				<footer>
-				  <span class="categories">posted in 
-				  
-					    <a class='category' href='StarSchema%E7%AC%94%E8%AE%B0.html'>StarSchema笔记</a>&nbsp;
-				   
-				  </span>
-				</footer>
-			</article>
- 	 
+	  
+		<footer>
+		 <p class="meta">
+
+			<strong>Categories:</strong>&nbsp; 
+			<span class="categories">
+			
+			    <a class='category' href='StarSchema%E7%AC%94%E8%AE%B0.html'>StarSchema笔记</a>&nbsp;
+			 
+			</span>
+		    </p>
+		    <p class="meta">
+		      
+		 </p>
+	    
+		<div class="sharing">
+		  
+          
+
+          
 
 		</div>
-</article>
 
-</div> <aside class="sidebar"> 
+	    <p class="meta">
+	    
+	    
+	        <a class="basic-alignment right" href="14869984530295.html" 
+	        title="Next Post: 企业级数据仓库体系结构">企业级数据仓库体系结构 &raquo;</a>
+	    
+	    </p>
+	  </footer>
+	</article>
+</div>
+ <aside class="sidebar"> 
 
 	<section>
 	  <h1>Categories</h1>

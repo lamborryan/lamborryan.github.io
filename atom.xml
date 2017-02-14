@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[追风的蓝宝]]></title>
+  <link href="www.lamborryan.com/atom.xml" rel="self"/>
+  <link href="www.lamborryan.com/"/>
+  <updated>2017-02-13T23:21:34+08:00</updated>
+  <id>www.lamborryan.com/</id>
+  <author>
+    <name><![CDATA[]]></name>
+    
+  </author>
+  <generator uri="http://www.coderforart.com/">CoderForArt</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[星型模型与多维数据集]]></title>
+    <link href="www.lamborryan.com/14870800072371.html"/>
+    <updated>2017-02-14T21:46:47+08:00</updated>
+    <id>www.lamborryan.com/14870800072371.html</id>
+    <content type="html"><![CDATA[
+<h2 id="toc_0">1.　维度表特性</h2>
+
+<h3 id="toc_1">1.1 代理键和自然键</h3>
+
+<ul>
+<li>代理建(SK)是在数据仓库中产生的，他表示星型模型中维度表的唯一性，它不具备业务含义，一般用于处理缓慢变化维。</li>
+<li>自然键(NK)是来源于源数据, 有可能一个实体中会有多个自然键，它具有业务含义。</li>
+<li>使用代理键允许数据仓库对源系统发生的变化作出相应，这是因为数据仓库面向的是历史数据的查询，而历史数据的自然键是可以重复的，通过建立代理键来确保维度的唯一性。</li>
+</ul>
+
+<p><img src="media/14870800072371/14870807707669.jpg" alt=""/></p>
+
+<p><strong><em>但是在实际应用中，我们并不会特意去使用代理键。第一点原因是，对于分布式计算系统，不存在事务的概念，对于每个表的记录生成全局唯一的稳定的代理键难度很大，此处稳定指某条记录每次生成的代理键都相同。第二点原因是，使用代理键会大大增加ETL的复杂性，对ETL任务的开发和维护成本很高</em></strong></p>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[企业级数据仓库体系结构]]></title>
+    <link href="www.lamborryan.com/14869984530295.html"/>
+    <updated>2017-02-13T23:07:33+08:00</updated>
+    <id>www.lamborryan.com/14869984530295.html</id>
+    <content type="html"><![CDATA[
+<h2 id="toc_0">企业级数据仓库体系结构分类</h2>
+
+<ul>
+<li>Inmon的企业信息化工程</li>
+<li>Kimball的维度数据仓库</li>
+<li>独立型数据集市</li>
+</ul>
+
+<h2 id="toc_1">Inmon的企业信息化工程</h2>
+
+<p>Inmon的体系结构中，先用ER模型(第3范式)建立一个企业级的原子数据仓库，该数据仓库是不对数据仓库应用软件提供服务的，因为原子数据的性质，该仓库尽可能的包括最底层的细节数据。随后，在原子数据仓库的基础上建立数据集市对外提供服务，也就是说数据集市和原子数据仓库是物理分开的。数据集市可以采用维度模型, 不一定非要用ER模型。</p>
+
+<p><img src="media/14869984530295/14869985649523.jpg" alt=""/></p>
+
+<h2 id="toc_2">Kimball的维度数据仓库</h2>
+
+<p>相对于Inmon的原子数据仓库， Kimball提出了维度数据仓库。它是根据维度建模的原则来设计的，由一系列的星型模型或者多维数据集组成，并由他们尽可能详尽的细节数据。<br/>
+虽然需要尽可能的避免，但是维度数据仓库可以被分析型系统直接访问。而数据集市是数据仓库中的主题区域，它可以使逻辑的，也可以是报表的子集。</p>
+
+<p><img src="media/14869984530295/14870780143290.jpg" alt=""/></p>
+
+<h2 id="toc_3">独立型数据集市</h2>
+
+<p>独立型数据集市是一个分析型数据存储，并不在企业环境中被设计的，它只关注主题域。数据集市可能采用维度设计，ER关系模型或者其他的设计模型，它能快速，廉价的获得结果。虽然短期内能非常成功，但是当独立型集市支持多个主题时候，它将是灾难。它会导致信息孤岛。</p>
+
+<p><img src="media/14869984530295/14870788989702.jpg" alt=""/></p>
+
+<h2 id="toc_4">体系结构和维度设计</h2>
+
+<p>对比以上三个体系结构:<br/>
+<img src="media/14869984530295/14870794697260.jpg" alt=""/></p>
+
+<p>方法对比:<br/>
+<img src="media/14869984530295/14870795494063.jpg" alt=""/><br/>
+　</p>
+
+]]></content>
+  </entry>
+  
+</feed>
