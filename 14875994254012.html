@@ -1,0 +1,306 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>
+    
+  维度一致性问题 - 追风的蓝宝
+  
+
+  </title>
+  <meta name="author" content="">
+  <meta name="description" content="爱好大数据与开源技术">
+
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <link href="asset/css/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="atom.xml" rel="alternate" title="追风的蓝宝" type="application/atom+xml">
+  <script src="asset/js/modernizr-2.0.js"></script>
+  <script src="asset/js/jquery.min.js"></script>
+  <script src="asset/highlightjs/highlight.pack.js"></script>
+  <link href="asset/highlightjs/styles/solarized_light.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script>hljs.initHighlightingOnLoad();</script>
+
+  <style type="text/css">
+  .cat-children-p{ padding: 6px 0px;}
+  .hljs{background: none;}
+  </style>
+  <script type="text/javascript">
+  var isAddSildbar = true;
+  </script>
+  <script src="asset/js/octopress.js" type="text/javascript"></script>
+</head>
+<script type="text/javascript">
+//链接新开窗口
+function addBlankTargetForLinks () {
+  $('a[href^="http"]').each(function(){
+      $(this).attr('target', '_blank');
+  });
+}
+$(document).ready(function(event) {
+  addBlankTargetForLinks();
+});
+</script>
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="index.html">追风的蓝宝</a></h1>
+  
+    <h2>爱好大数据与开源技术</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:www.lamborryan.com" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+
+  <li id=""><a target="_self" href="index.html">Home</a></li>
+
+  <li id=""><a target="_self" href="archives.html">Archives</a></li>
+
+  <li id=""><a target="_self" href="about.html">About</a></li>
+
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content"> 
+<div>
+	<article class="hentry" role="article">
+	<header>
+			  	<h1 class="entry-title">维度一致性问题</h1>
+				<p class="meta"><time datetime="2017-02-20T22:03:45+08:00" pubdate data-updated="true">2017/2/20</time></p>
+			 </header>
+		  	<div class="entry-content">
+			  	<ul>
+<li>
+<a href="#toc_0">1. 维度与横向钻取</a>
+<ul>
+<li>
+<a href="#toc_1">1.1 造成横向钻取失败的原因</a>
+</li>
+</ul>
+</li>
+<li>
+<a href="#toc_2">2. 一致性维度</a>
+<ul>
+<li>
+<a href="#toc_3">2.1 共享维度表</a>
+</li>
+<li>
+<a href="#toc_4">2.2 一致性上卷维度</a>
+</li>
+<li>
+<a href="#toc_5">2.3 一致的退化维度</a>
+</li>
+<li>
+<a href="#toc_6">2.4 重叠维度</a>
+</li>
+</ul>
+</li>
+<li>
+<a href="#toc_7">3. 使用矩阵图表来规划一致性维度</a>
+</li>
+<li>
+<a href="#toc_8">4. 总结</a>
+</li>
+</ul>
+
+
+<p>维度表是整个数据仓库的骨架，好的维度表设计能确保整个数据仓库的高可用性，反之不好的维度表设计使得数据仓库可用性大大降低。如果维度表不能实现一致性，那么多个星型模型不能实现横向钻取，从而形成信息孤岛。</p>
+
+<p>本文主要介绍维度表的一致性要求以及问题。</p>
+
+<span id="more"></span><!-- more -->
+
+<h2 id="toc_0">1. 维度与横向钻取</h2>
+
+<p>前面提到，多个事实表进行连接是通过横向钻取实现的，而实现横向钻取的前提是维度的一致性。维度是确保将不同过程中的信息集成起来的实现横向钻取活动的关键。当维度的结构或内容不同时，横向钻取就会失败，不同的过程将不能协同。支持横向钻取时，多维表并不需要完全相同。当一个维度表中的属性是另一个维度表属性的子集时，横向钻取也是可以实现的。</p>
+
+<h3 id="toc_1">1.1 造成横向钻取失败的原因</h3>
+
+<p>我们通过以下这个例子来分析横向钻取失败的原因。</p>
+
+<p><img src="media/14875994254012/14876000556258.jpg" alt=""/></p>
+
+<p>图中星型模型描述了订单和收益两个业务过程，可以发现两个星型模型都存在了以下几个维度，Day, SalesRep, Customer, Product。本来我们可以通过这些相同的维度来横向钻取两个业务过程并进行分析。但是实际情况并不如此，通过对比，不难发现在他们的产品维度上存在以下几个差异:</p>
+
+<ul>
+<li>维度结构的差异
+
+<ul>
+<li>收益星型模型的产品维度有type维度，订单星型模型没有。</li>
+<li>表示同一事情的列在不同的星型模型中以不同的名字命名。比如收益星型模型的prod_cat和prod_name在订单星型中就叫做了prodict,category。 </li>
+</ul></li>
+<li>维度内容的差异
+
+<ul>
+<li>产品名称和分类的格式的差异。订单星型模型中的数据格式没有区分大小写且包含了标点符号，收益星型模型中的数据格式采用大写且不包含标点符号。当这些值进行join的时候会发现根本连接不起来。</li>
+<li>名称不一致。订单模型中的产品“9*12 bubble mailer” 在收益模型中对应的为“STANDARD MAILER”</li>
+<li>在订单星型模型中自然键的4444-22在收益模型中出现了两行。</li>
+<li>订单星型模型中自然键6666-22收益模型中却没有。</li>
+<li>SKU为5555-22的行在两个星型模型中分配了不同的代理键。</li>
+</ul></li>
+</ul>
+
+<p>这些问题在进行多个事实表横向钻取时候都会对结果的准确性造成很大的影响。 </p>
+
+<h2 id="toc_2">2. 一致性维度</h2>
+
+<p>上文给出了不满足一致性维度的例子，那么什么样子是一致性维度呢。一致性维度的根本要求是，公共属性的结构和内容相同。下文给出了4种一致性维度。</p>
+
+<h3 id="toc_3">2.1 共享维度表</h3>
+
+<p>最常见的维度一致性形式发生在两个星型模型共享相同的逻辑维度时。这个共享可能是同一个物理表，也有可能有两个或者多个等价表组成。只要满足以下两个特性就是共享维度表:</p>
+
+<ul>
+<li>表共享相同的结构</li>
+<li>表共享相同的内容</li>
+</ul>
+
+<h3 id="toc_4">2.2 一致性上卷维度</h3>
+
+<p>保持一致性并不需要维度表完全相同。只要满足以下条件，不同的维度表也能支持横向钻取:</p>
+
+<ul>
+<li>表的维度属性是其他表的维度属性的子集</li>
+<li>公共维度属性具有相同的结构和内容</li>
+</ul>
+
+<p>其中较小的那个叫一致性上卷，较大的那个称为基本维度。</p>
+
+<p><img src="media/14875994254012/14876019122246.jpg" alt=""/></p>
+
+<p>从上图中可以看出，MONTH表的维度属性是DAY表的子集，而这部分结构,比如month和year，具有相同的结构和内容。所以MONTH是一致性上卷，DAY是基础表。</p>
+
+<h3 id="toc_5">2.3 一致的退化维度</h3>
+
+<p>前文讲过，退化维度将维度属性存储在事实表中，往往用于标示事物或者标示文档。相同的退化维度可以在多个事实表中实现，因此可以在退化维度上执行横向钻取。它同样有根本要求：公共属性的结构和内容相同。</p>
+
+<h3 id="toc_6">2.4 重叠维度</h3>
+
+<p>当两个维度出现重叠属性时候，且重叠属性具有共享相同的结构和内容，那么重叠属性可以确保维度表的一致性。这种情况比较少见。</p>
+
+<p><strong><em>重叠维度和是否需要生成第三章表的独立出重叠维度需要郑重考虑，因为第三章表的出现意味着采用了雪花模型，而一般情况下雪花模型是不提倡的，这在后面文章介绍。同时维护多个维度表的重叠维度也是比较麻烦的</em></strong></p>
+
+<h2 id="toc_7">3. 使用矩阵图表来规划一致性维度</h2>
+
+<p>一致性维度是维度建模的关键。在进行维度建模时候，有必要使用矩阵图表来规划维度的一致性，下图是利用矩阵图标规划维度一致性的例子。列代表了核心一致性维度，行代表了不同的过程和事实表，可通过在适当交叉点放置标志来阐明一致性。</p>
+
+<p><img src="media/14875994254012/14876029234717.jpg" alt=""/></p>
+
+<h2 id="toc_8">4. 总结</h2>
+
+<p>在Inmon的数据仓库体系中，由于原子数据仓库是用ER模型建立的，所以它的维度一致性是弱化的。而独立的数据集市，只关心单一数据技术，更不需要企业级的一致性问题。只有Kimball的维度模型数据仓库维度的一致性。</p>
+
+<p>本文完。</p>
+
+			</div>
+
+		
+	  
+		<footer>
+		 <p class="meta">
+
+			<strong>Categories:</strong>&nbsp; 
+			<span class="categories">
+			
+			    <a class='category' href='StarSchema%E7%AC%94%E8%AE%B0.html'>StarSchema笔记</a>&nbsp;
+			 
+			</span>
+		    </p>
+		    <p class="meta">
+		      
+		 </p>
+	    
+		<div class="sharing">
+		  
+          
+
+          
+
+		</div>
+
+	    <p class="meta">
+	    
+	    
+	        <a class="basic-alignment right" href="14870800072371.html" 
+	        title="Next Post: 星型模型与多维数据集">星型模型与多维数据集 &raquo;</a>
+	    
+	    </p>
+	  </footer>
+	</article>
+</div>
+ <aside class="sidebar"> 
+
+	<section>
+	  <h1>Categories</h1>
+	  <ul id="recent_posts">
+	  
+	      <li class="post">
+	        <a href="%E6%95%B0%E4%BB%93%E5%BB%BA%E6%A8%A1.html"><strong>数仓建模&nbsp;(3)</strong></a>
+	         <p class="cat-children-p"> 
+	        
+	        	<a href="StarSchema%E7%AC%94%E8%AE%B0.html">StarSchema笔记&nbsp;(3)</a>&nbsp;&nbsp;
+	        
+	         </p> 
+	      </li>
+	   
+	  </ul>
+	</section>
+	<section>
+	  <h1>Recent Posts</h1>
+	  <ul id="recent_posts">
+	  
+	      
+		      <li class="post">
+		        <a href="14875994254012.html">维度一致性问题</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="14870800072371.html">星型模型与多维数据集</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="14869984530295.html">企业级数据仓库体系结构</a>
+		      </li>
+	     
+	   
+	  </ul>
+	</section>
+	
+</aside> </div></div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2014 -  -
+  <span class="credit">Powered by <a target="_blank" href="http://www.mweb.im">MWeb</a> &nbsp;&nbsp; Theme by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+
+  
+    
+
+
+
+
+</body>
+</html>
