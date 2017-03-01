@@ -7,7 +7,7 @@
   <meta charset="utf-8">
   <title>
     
-  Archives - 追风的蓝宝
+  Data Vault - 追风的蓝宝
   
 
   </title>
@@ -79,90 +79,98 @@ $(document).ready(function(event) {
 
 </nav>
   <div id="main">
-    <div id="content">  <div>
-<article role="article">
-  <header>
-    <h1 class="entry-title">Blog Archive</h1>
-  </header>
-	<div id="blog-archives">
-	
-		 
-		  	<h2>2017</h2>
-		
-		
-			<article>
-				<h1><a href="14878594058587.html">Data Vault 模型初探</a></h1>
-				<time datetime="2017-02-23T22:16:45+08:00" pubdate><span class='month'>2月</span> <span class='day'>23</span> <span class='year'>2017</span></time>
-				<footer>
-				  <span class="categories">posted in 
-				  
-					    <a class='category' href='Data%20Vault.html'>Data Vault</a>&nbsp;
-				   
-				  </span>
-				</footer>
-			</article>
- 	
-		
-		
-			<article>
-				<h1><a href="14876860100279.html">深入学习维度表</a></h1>
-				<time datetime="2017-02-21T22:06:50+08:00" pubdate><span class='month'>2月</span> <span class='day'>21</span> <span class='year'>2017</span></time>
-				<footer>
-				  <span class="categories">posted in 
-				  
-					    <a class='category' href='StarSchema%E7%AC%94%E8%AE%B0.html'>StarSchema笔记</a>&nbsp;
-				   
-				  </span>
-				</footer>
-			</article>
- 	
-		
-		
-			<article>
-				<h1><a href="14875994254012.html">维度一致性问题</a></h1>
-				<time datetime="2017-02-20T22:03:45+08:00" pubdate><span class='month'>2月</span> <span class='day'>20</span> <span class='year'>2017</span></time>
-				<footer>
-				  <span class="categories">posted in 
-				  
-					    <a class='category' href='StarSchema%E7%AC%94%E8%AE%B0.html'>StarSchema笔记</a>&nbsp;
-				   
-				  </span>
-				</footer>
-			</article>
- 	
-		
-		
-			<article>
-				<h1><a href="14870800072371.html">星型模型与多维数据集</a></h1>
-				<time datetime="2017-02-14T21:46:47+08:00" pubdate><span class='month'>2月</span> <span class='day'>14</span> <span class='year'>2017</span></time>
-				<footer>
-				  <span class="categories">posted in 
-				  
-					    <a class='category' href='StarSchema%E7%AC%94%E8%AE%B0.html'>StarSchema笔记</a>&nbsp;
-				   
-				  </span>
-				</footer>
-			</article>
- 	
-		
-		
-			<article>
-				<h1><a href="14869984530295.html">企业级数据仓库体系结构</a></h1>
-				<time datetime="2017-02-13T23:07:33+08:00" pubdate><span class='month'>2月</span> <span class='day'>13</span> <span class='year'>2017</span></time>
-				<footer>
-				  <span class="categories">posted in 
-				  
-					    <a class='category' href='StarSchema%E7%AC%94%E8%AE%B0.html'>StarSchema笔记</a>&nbsp;
-				   
-				  </span>
-				</footer>
-			</article>
- 	 
+    <div id="content"> 
+<div class="blog-index">
+
+	<article>
+		 <header>
+		  	<h1 class="entry-title"><a href="14878594058587.html">Data Vault 模型初探</a></h1>
+			<p class="meta"><time datetime="2017-02-23T22:16:45+08:00" 
+			pubdate data-updated="true">2017/2/23</time></p>
+		 </header>
+	  	<div class="entry-content">
+		  	
+		  	<ul>
+<li>
+<a href="#toc_0">Data Vault的定义</a>
+</li>
+<li>
+<a href="#toc_1">Data Vault的组件</a>
+<ul>
+<li>
+<a href="#toc_2">Hub</a>
+</li>
+<li>
+<a href="#toc_3">Link</a>
+</li>
+<li>
+<a href="#toc_4">Satellite</a>
+</li>
+<li>
+<a href="#toc_5">Point In Time 辅助表</a>
+</li>
+</ul>
+</li>
+<li>
+<a href="#toc_6">Data Vault的参考原则</a>
+<ul>
+<li>
+<a href="#toc_7">关于Hub的原则</a>
+</li>
+<li>
+<a href="#toc_8">关于Link的原则</a>
+</li>
+<li>
+<a href="#toc_9">关于Satellite的原则</a>
+</li>
+</ul>
+</li>
+<li>
+<a href="#toc_10">一些优化</a>
+</li>
+<li>
+<a href="#toc_11">Data Vault 2.0</a>
+</li>
+<li>
+<a href="#toc_12">总结</a>
+</li>
+<li>
+<a href="#toc_13">参考文献</a>
+<ul>
+<li>
+<ul>
+<li>
+<a href="#toc_14">本文完</a>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+
+<p>Data Vault被视为新一代的数据仓库技术，还是得到广泛的关注的。它综合了ER模型和Star Schema模型的一些优点，也克服了一些缺点。最近花了点时间学习了Data Vault模型，所以有了这篇文章。</p>
+
+
 
 		</div>
-</article>
 
-</div> <aside class="sidebar"> 
+		 
+		 <footer>
+      	<a rel="full-article" href="14878594058587.html#more">read more &rarr;</a>
+    	</footer>
+    	
+
+	</article>
+  
+	<div class="pagination">
+	
+<a href="archives.html">Blog Archives</a>
+	 
+	    
+	</div>
+</div>
+ <aside class="sidebar"> 
 
 	<section>
 	  <h1>Categories</h1>

@@ -4,7 +4,7 @@
   <title><![CDATA[追风的蓝宝]]></title>
   <link href="www.lamborryan.com/atom.xml" rel="self"/>
   <link href="www.lamborryan.com/"/>
-  <updated>2017-02-22T23:39:36+08:00</updated>
+  <updated>2017-03-01T22:20:53+08:00</updated>
   <id>www.lamborryan.com/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,6 +12,210 @@
   </author>
   <generator uri="http://www.coderforart.com/">CoderForArt</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Data Vault 模型初探]]></title>
+    <link href="www.lamborryan.com/14878594058587.html"/>
+    <updated>2017-02-23T22:16:45+08:00</updated>
+    <id>www.lamborryan.com/14878594058587.html</id>
+    <content type="html"><![CDATA[
+<ul>
+<li>
+<a href="#toc_0">Data Vault的定义</a>
+</li>
+<li>
+<a href="#toc_1">Data Vault的组件</a>
+<ul>
+<li>
+<a href="#toc_2">Hub</a>
+</li>
+<li>
+<a href="#toc_3">Link</a>
+</li>
+<li>
+<a href="#toc_4">Satellite</a>
+</li>
+<li>
+<a href="#toc_5">Point In Time 辅助表</a>
+</li>
+</ul>
+</li>
+<li>
+<a href="#toc_6">Data Vault的参考原则</a>
+<ul>
+<li>
+<a href="#toc_7">关于Hub的原则</a>
+</li>
+<li>
+<a href="#toc_8">关于Link的原则</a>
+</li>
+<li>
+<a href="#toc_9">关于Satellite的原则</a>
+</li>
+</ul>
+</li>
+<li>
+<a href="#toc_10">一些优化</a>
+</li>
+<li>
+<a href="#toc_11">Data Vault 2.0</a>
+</li>
+<li>
+<a href="#toc_12">总结</a>
+</li>
+<li>
+<a href="#toc_13">参考文献</a>
+<ul>
+<li>
+<ul>
+<li>
+<a href="#toc_14">本文完</a>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+
+<p>Data Vault被视为新一代的数据仓库技术，还是得到广泛的关注的。它综合了ER模型和Star Schema模型的一些优点，也克服了一些缺点。最近花了点时间学习了Data Vault模型，所以有了这篇文章。</p>
+
+<span id="more"></span><!-- more -->
+
+<h2 id="toc_0">Data Vault的定义</h2>
+
+<p>Data Vault是一个面向细节，追踪历史的，由一些规范化数据表组成的唯一的关联表集，用来支持一个或者多个业务功能域。</p>
+
+<p>Data Vault模型用来架构一个企业级数据仓库(EDW),而不是数据集市。在某种程度上与Inmmon的原子数据仓库有点相似。</p>
+
+<h2 id="toc_1">Data Vault的组件</h2>
+
+<p>Data Vault 主要有Hub，Link，Satellite三个组成。它主要围绕业务功能域，以原子的业务实体逐步展开，进而扩充到整个数据仓库范围。其中Hub代表业务的实体主键，Link在Hub之间提供业务实体之间的业务关联与交易，而Satellite则提供Hub和Link的上下文描述信息。</p>
+
+<h3 id="toc_2">Hub</h3>
+
+<p>Hub是一个单个的数据表，是一个仅仅包含了简单的业务实体键值的列表，比如员工id，商品id等。如果这些实体键值丢失，那么该业务实体的上下文描述信息也会丢失。它主要包含以下的属性：</p>
+
+<ul>
+<li>代理键 (Surrogate Key)。一个跟业务无关的键值或者序列号。</li>
+<li>业务主键 (Business Key)。 业务主键，唯一性。</li>
+<li>数据装载时间 (Load Data)。记录该业务键被加载的时间。</li>
+<li>记录源 (Record Source)。记录该业务键的来源，用来做数据源追踪之用。</li>
+</ul>
+
+<p><img src="media/14878594058587/14878618338988.jpg" alt=""/></p>
+
+<p>上图为一个Customer Hub。ID 为代理键，CUSTOMER是主键, LOAD_DTS是数据装载时间，RCRD_SRC是记录源。</p>
+
+<h3 id="toc_3">Link</h3>
+
+<p>Link是一个多对多的3NF表，在两个或者多个业务实体之间，LINK表示业务实体HUB之间的业务关联或者交易。他主要包含以下的属性：</p>
+
+<ul>
+<li>代理键 (Surrogate Key)。一个跟业务无关的键值或者序列号。如果有多个Hub的主键加入，可以考虑使用代理键。</li>
+<li>Hub1...Hubn 的主键。 多个与该Link相关的Hub的主键伸入到Link中来表示Hub之间的业务关系。</li>
+<li>数据装载时间 (Load Data)。记录该业务键被加载的时间。</li>
+<li>记录源 (Record Source)。记录该业务键的来源，用来做数据源追踪之用。</li>
+</ul>
+
+<p><img src="media/14878594058587/14878622845384.jpg" alt=""/></p>
+
+<p>上图中，中间表为Link表，上下两个Hub表(Hub_Customer和Hub_invoice)，Hub_Customer和Hub_invoice的ID分别对应Link表的CSID和INVOICE ID</p>
+
+<h3 id="toc_4">Satellite</h3>
+
+<p>Satellite是关于Hub或者Link的上下文描述信息。这些信息有可能随着时间发生变化。因此，Satellite不仅能存储新的数据，而且还要包含变化前的数据。它主要包含:</p>
+
+<ul>
+<li>Satellite主键。Hub或者Link的主键伸入到Satellite作为主键。</li>
+<li>Satellite主键。数据装载时间(Load Date) 描述该信息在数据仓库的装载时间，也就是什么时候起有效。为了保存历史数据，该属性也作为了主键的一部分。有时候会与End Date(时效时间)一起用。</li>
+<li>数据装载时间 (Load Data)。记录该业务键被加载的时间。</li>
+<li>记录源 (Record Source)。记录该业务键的来源，用来做数据源追踪之用。</li>
+</ul>
+
+<p><img src="media/14878594058587/14878633631576.jpg" alt=""/></p>
+
+<p>Satellite类似与Star Schema模型的第二类缓慢变化维，保证了粒度级别的增量数据，用来为相应的Hub或者Link提供上下文描述信息。</p>
+
+<p>上图中可以看出，上表是Hub_CUSTOMER, 下表是Satellite_Customer,CS_ID和LOAD_DTS成为Satellite_Customer的主键。CS_ID为1的多个行对应了Hub_CUSTOMER的一个CUSTOMER ID.</p>
+
+<h3 id="toc_5">Point In Time 辅助表</h3>
+
+<p>如果一个Hub有多个Satellite，通常需要一个Point In Time辅助表来协助同步多个Satellite的不同时间版本上下文信息。</p>
+
+<p><img src="media/14878594058587/14878637972708.jpg" alt=""/></p>
+
+<p>上图中，Customer Name Satellite和Customer Address Satellite的数据缓慢变化是没有同步对应的，比如Name Satellite的哪条CSID=1 和 Address Satellite的哪条CSID=1是同一时刻的数据。这时就建立了最上面的这张PID表，新建NAME_LOAD_DTS和ADDRESS_LOAD_DTS字段来对Name Satellite和Address Satellite进行对应，实现时间同步。如此之后，Name Satellite和Address Satellite就变得有序了。</p>
+
+<h2 id="toc_6">Data Vault的参考原则</h2>
+
+<h3 id="toc_7">关于Hub的原则</h3>
+
+<ul>
+<li>Hue的主键不能够直接深入到其他Hub里面。也就是说，不存在父子关系的Hub。各个Hub之间的关系是平等的。这就是Data Vault能保持灵活性和扩展性的关键。</li>
+<li>Hub之间必须通过Link相关联，通过Link可以连接多个Hub。</li>
+<li>必须至少有两个Hub才能产生一个有意义的Link。</li>
+<li>Hub的键总是伸出去的(到Link或者Satellite)。</li>
+</ul>
+
+<h3 id="toc_8">关于Link的原则</h3>
+
+<ul>
+<li>Link可以跟其他Link相关联</li>
+<li>Hub和Link都可以使用代理键，Satellite不适用代理键。</li>
+<li>业务主键从来不会改变，就是说Hub的主键不会改变。</li>
+<li>Link可能包含代理键。</li>
+</ul>
+
+<h3 id="toc_9">关于Satellite的原则</h3>
+
+<ul>
+<li>Satellite必须是连接到Link或者Hub上才有确定的含义。</li>
+<li>Satellite必须包含装载时间Load_DTS, 从而包含历史数据，并且没有重复的数据。</li>
+<li>由于数据信息的类型或者变化频率快慢的差别，描述信息数据可能会被分割开到多个Satellite之中去。</li>
+</ul>
+
+<h2 id="toc_10">一些优化</h2>
+
+<p>在《Data Vault Series》系列中，提到了Business Data Vault (数据)，他在Data Vault  的基础上 增加了一些优化来快速解决join的问题，比如 <a href="http://www.vertabelo.com/blog/technical-articles/data-vault-series-the-business-data-vault">Bridge Tables</a>.</p>
+
+<p>如果是Data Vault 设计就是一下这个图，<br/>
+<img src="media/14878594058587/14883776431803.jpg" alt=""/></p>
+
+<p>建立Bridge Table之后就是</p>
+
+<p><img src="media/14878594058587/14883776751896.jpg" alt=""/></p>
+
+<p>有了Bridge Table之后，我们可以少join需要表。详细内容见文章<a href="http://www.vertabelo.com/blog/technical-articles/data-vault-series-building-an-information-mart-with-your-data-vault">《Data Vault Series (4)》</a></p>
+
+<h2 id="toc_11">Data Vault 2.0</h2>
+
+<p>相比于Data Vault 1.0， Data Vault 2.0 给出了完整的数仓建设结构，他使用了实时和离线结合，使用了NOSQL数据库。不过，体系结构超出了本文范围。本文主要介绍Data Vault 2.0建模方法论上的新加功能。</p>
+
+<p>Data Vault 2.0 模型最大的变化就是将Hub Link的主键由Integer型变化为Hash Key，一般是经过MD5处理。作者认为经过Hash key处理后，主键的长度固定，因此在进行Hub Link Satellite进行关联时候能起到性能优化。但是<strong><em>我并不认同这个观念</em></strong>。</p>
+
+<h2 id="toc_12">总结</h2>
+
+<p>Data Vault 是个很灵活的敏捷建模方法。它解决部分ER模型和星型模型的缺点。但是同样引进了新的问题，大量的Hub Link Satellite的存在，使得join操作特别多，当数据量巨大时候，join操作往往是最费时间的。因此，对于Data Vault模型应用于大数据领域的效果，我们有待考察。</p>
+
+<p>本文简要介绍了Data Vault的模型，更多的例子和深入的内容请看参考文献的《Data Vault Series》系列文章。</p>
+
+<h2 id="toc_13">参考文献</h2>
+
+<ul>
+<li><a href="http://www.doc88.com/p-97036345456.html">下一代数据仓库模型Data Vault的研究及其应用</a></li>
+<li><a href="http://www.vertabelo.com/blog/technical-articles/data-vault-series-data-vault-2-0-modeling-basics">Data Vault Series (2)</a></li>
+<li><a href="http://www.vertabelo.com/blog/technical-articles/data-vault-series-agile-modeling-not-an-option-anymore">Data Vault Series (1)</a></li>
+<li><a href="http://www.vertabelo.com/blog/technical-articles/data-vault-series-the-business-data-vault">Data Vault Series (3)</a></li>
+<li><a href="http://www.vertabelo.com/blog/technical-articles/data-vault-series-building-an-information-mart-with-your-data-vault">Data Vault Series (4)</a></li>
+</ul>
+
+<hr/>
+
+<h4 id="toc_14">本文完</h4>
+
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[深入学习维度表]]></title>
