@@ -4,7 +4,7 @@
   <title><![CDATA[追风的蓝宝]]></title>
   <link href="www.lamborryan.com/atom.xml" rel="self"/>
   <link href="www.lamborryan.com/"/>
-  <updated>2017-03-01T22:20:53+08:00</updated>
+  <updated>2017-03-01T22:22:07+08:00</updated>
   <id>www.lamborryan.com/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -61,15 +61,18 @@
 <a href="#toc_11">Data Vault 2.0</a>
 </li>
 <li>
-<a href="#toc_12">总结</a>
+<a href="#toc_12">数据集市</a>
 </li>
 <li>
-<a href="#toc_13">参考文献</a>
+<a href="#toc_13">总结</a>
+</li>
+<li>
+<a href="#toc_14">参考文献</a>
 <ul>
 <li>
 <ul>
 <li>
-<a href="#toc_14">本文完</a>
+<a href="#toc_15">本文完</a>
 </li>
 </ul>
 </li>
@@ -194,25 +197,29 @@
 
 <p>Data Vault 2.0 模型最大的变化就是将Hub Link的主键由Integer型变化为Hash Key，一般是经过MD5处理。作者认为经过Hash key处理后，主键的长度固定，因此在进行Hub Link Satellite进行关联时候能起到性能优化。但是<strong><em>我并不认同这个观念</em></strong>。</p>
 
-<h2 id="toc_12">总结</h2>
+<h2 id="toc_12">数据集市</h2>
+
+<p>一般使用Data Vault构建企业的原子数据仓库，之后在上面用星型模型构建企业数据集市，这里就涉及到将Data Vault转星型模型，我们可以看这篇文章<a href="http://www.vertabelo.com/blog/technical-articles/data-vault-series-building-an-information-mart-with-your-data-vault">《Data Vault Series (4)》</a></p>
+
+<h2 id="toc_13">总结</h2>
 
 <p>Data Vault 是个很灵活的敏捷建模方法。它解决部分ER模型和星型模型的缺点。但是同样引进了新的问题，大量的Hub Link Satellite的存在，使得join操作特别多，当数据量巨大时候，join操作往往是最费时间的。因此，对于Data Vault模型应用于大数据领域的效果，我们有待考察。</p>
 
 <p>本文简要介绍了Data Vault的模型，更多的例子和深入的内容请看参考文献的《Data Vault Series》系列文章。</p>
 
-<h2 id="toc_13">参考文献</h2>
+<h2 id="toc_14">参考文献</h2>
 
 <ul>
 <li><a href="http://www.doc88.com/p-97036345456.html">下一代数据仓库模型Data Vault的研究及其应用</a></li>
-<li><a href="http://www.vertabelo.com/blog/technical-articles/data-vault-series-data-vault-2-0-modeling-basics">Data Vault Series (2)</a></li>
-<li><a href="http://www.vertabelo.com/blog/technical-articles/data-vault-series-agile-modeling-not-an-option-anymore">Data Vault Series (1)</a></li>
-<li><a href="http://www.vertabelo.com/blog/technical-articles/data-vault-series-the-business-data-vault">Data Vault Series (3)</a></li>
-<li><a href="http://www.vertabelo.com/blog/technical-articles/data-vault-series-building-an-information-mart-with-your-data-vault">Data Vault Series (4)</a></li>
+<li><a href="http://www.vertabelo.com/blog/technical-articles/data-vault-series-data-vault-2-0-modeling-basics">Data Vault Series (2) Data Vault 2.0 Modeling Basics</a></li>
+<li><a href="http://www.vertabelo.com/blog/technical-articles/data-vault-series-agile-modeling-not-an-option-anymore">Data Vault Series (1) Agile Modeling: Not an Option Anymore</a></li>
+<li><a href="http://www.vertabelo.com/blog/technical-articles/data-vault-series-the-business-data-vault">Data Vault Series (3) The Business Data Vault</a></li>
+<li><a href="http://www.vertabelo.com/blog/technical-articles/data-vault-series-building-an-information-mart-with-your-data-vault">Data Vault Series (4) Building an Information Mart With Your Data Vault</a></li>
 </ul>
 
 <hr/>
 
-<h4 id="toc_14">本文完</h4>
+<h4 id="toc_15">本文完</h4>
 
 ]]></content>
   </entry>
