@@ -7,7 +7,7 @@
   <meta charset="utf-8">
   <title>
     
-  企业级数据仓库体系结构 - 追风的蓝宝
+  在阿里这一年，我的数据观 - 追风的蓝宝
   
 
   </title>
@@ -83,67 +83,66 @@ $(document).ready(function(event) {
 <div>
 	<article class="hentry" role="article">
 	<header>
-			  	<h1 class="entry-title">企业级数据仓库体系结构</h1>
-				<p class="meta"><time datetime="2017-02-13T23:07:33+08:00" pubdate data-updated="true">2017/2/13</time></p>
+			  	<h1 class="entry-title">在阿里这一年，我的数据观</h1>
+				<p class="meta"><time datetime="2017-12-22T21:24:38+08:00" pubdate data-updated="true">2017/12/22</time></p>
 			 </header>
 		  	<div class="entry-content">
 			  	<ul>
 <li>
-<a href="#toc_0">企业级数据仓库体系结构分类</a>
+<a href="#toc_0">前言</a>
 </li>
 <li>
-<a href="#toc_1">Inmon的企业信息化工程</a>
+<a href="#toc_1">Hadoop并不等于大数据</a>
 </li>
 <li>
-<a href="#toc_2">Kimball的维度数据仓库</a>
+<a href="#toc_2">业务推动数据的建设</a>
 </li>
 <li>
-<a href="#toc_3">独立型数据集市</a>
+<a href="#toc_3">阿里的数据建设</a>
 </li>
 <li>
-<a href="#toc_4">体系结构和维度设计</a>
+<a href="#toc_4">数据开发工程师的技能</a>
+</li>
+<li>
+<a href="#toc_5">展望</a>
 </li>
 </ul>
 
 
 <span id="more"></span><!-- more -->
 
-<h2 id="toc_0">企业级数据仓库体系结构分类</h2>
+<h2 id="toc_0">前言</h2>
+
+<p>快一年没有更新博客和公众号了，确实这一年比较忙，忙于学习和工作，工作之余还要陪伴孩子，没有太多时间去思考。2017年已经接近尾声，所以或多或少需要来总结一下。</p>
+
+<p>为什么取这个题目呢，因为2017年的1月我进入了阿里的大数据部门，再过几天就要成为“<strong><em>一年香</em></strong> ”了。我想以一个数据人的角度来总结下我在阿里这一年对数据的思考，当然有些问题即使到现在我也没有想通，不过没关系，欢迎一起探讨。</p>
+
+<p><strong><em>我说的不可能全对，因此希望大家可以一起交流。</em></strong></p>
+
+<h2 id="toc_1">Hadoop并不等于大数据</h2>
+
+<p>在进阿里之前，我一直从事大数据相关的开发，做过搜索引擎，搭建过大数据平台，设计过数据仓库，也做过简陋的标签系统。</p>
+
+<p>说实话，这一路走来，越走越迷茫。因为一直围绕着Hadoop这一生态在转，玩来玩去那几个框架，Hive玩腻了玩Spark，Spark玩腻了玩Flink。JAVA 写烦了换Scala。平时看看源码，发现个新的用法能兴奋半天。但是依然完不成老板要求的数据变现，一点头绪都没。</p>
+
+<p>所以Hadoop并不等于大数据，它只是实现大数据的工具，而我们往往迷失于工具之中而炫技。</p>
+
+<p>在面试过程中跟很多候选人聊过，他们也都有迷茫，一直在底层平台的建设，接触不到业务，没有系统的去建设数据。翻遍Google，都是介绍Hadoop/Spark原理的内容，怎么去建设数据却几乎没有。</p>
+
+<h2 id="toc_2">业务推动数据的建设</h2>
+
+<p>之前搭建数据平台，我们经历过两个阶段：</p>
 
 <ul>
-<li>Inmon的企业信息化工程</li>
-<li>Kimball的维度数据仓库</li>
-<li>独立型数据集市</li>
+<li>第一个阶段，业务初期，基于Python+Pandas 快速实现报表。</li>
+<li>第二个阶段，业务发展起来后，基于Hive的数据仓库体系。</li>
 </ul>
 
-<h2 id="toc_1">Inmon的企业信息化工程</h2>
+<h2 id="toc_3">阿里的数据建设</h2>
 
-<p>Inmon的体系结构中，先用ER模型(第3范式)建立一个企业级的原子数据仓库，该数据仓库是不对数据仓库应用软件提供服务的，因为原子数据的性质，该仓库尽可能的包括最底层的细节数据。随后，在原子数据仓库的基础上建立数据集市对外提供服务，也就是说数据集市和原子数据仓库是物理分开的。数据集市可以采用维度模型, 不一定非要用ER模型。</p>
+<h2 id="toc_4">数据开发工程师的技能</h2>
 
-<p><img src="media/14869984530295/14869985649523.jpg" alt=""/></p>
-
-<h2 id="toc_2">Kimball的维度数据仓库</h2>
-
-<p>相对于Inmon的原子数据仓库， Kimball提出了维度数据仓库。它是根据维度建模的原则来设计的，由一系列的星型模型或者多维数据集组成，并由他们尽可能详尽的细节数据。<br/>
-虽然需要尽可能的避免，但是维度数据仓库可以被分析型系统直接访问。而数据集市是数据仓库中的主题区域，它可以使逻辑的，也可以是报表的子集。</p>
-
-<p><img src="media/14869984530295/14870780143290.jpg" alt=""/></p>
-
-<h2 id="toc_3">独立型数据集市</h2>
-
-<p>独立型数据集市是一个分析型数据存储，并不在企业环境中被设计的，它只关注主题域。数据集市可能采用维度设计，ER关系模型或者其他的设计模型，它能快速，廉价的获得结果。虽然短期内能非常成功，但是当独立型集市支持多个主题时候，它将是灾难。它会导致信息孤岛。</p>
-
-<p><img src="media/14869984530295/14870788989702.jpg" alt=""/></p>
-
-<h2 id="toc_4">体系结构和维度设计</h2>
-
-<p>对比以上三个体系结构:</p>
-
-<p><img src="media/14869984530295/14870794697260.jpg" alt=""/></p>
-
-<p>方法对比:<br/>
-<img src="media/14869984530295/14870795494063.jpg" alt=""/><br/>
-　</p>
+<h2 id="toc_5">展望</h2>
 
 			</div>
 
@@ -155,7 +154,7 @@ $(document).ready(function(event) {
 			<strong>Categories:</strong>&nbsp; 
 			<span class="categories">
 			
-			    <a class='category' href='StarSchema%E7%AC%94%E8%AE%B0.html'>StarSchema笔记</a>&nbsp;
+			    <a class='category' href='%E6%84%9F%E6%82%9F.html'>感悟</a>&nbsp;
 			 
 			</span>
 		    </p>
@@ -173,9 +172,12 @@ $(document).ready(function(event) {
 
 	    <p class="meta">
 	    
-	        <a class="basic-alignment left" href="14870800072371.html" 
-	        title="Previous Post: 星型模型与多维数据集">&laquo; 星型模型与多维数据集</a>
+	        <a class="basic-alignment left" href="15154238312203.html" 
+	        title="Previous Post: JavaCC的使用总结">&laquo; JavaCC的使用总结</a>
 	    
+	    
+	        <a class="basic-alignment right" href="14878594058587.html" 
+	        title="Next Post: Data Vault 模型初探">Data Vault 模型初探 &raquo;</a>
 	    
 	    </p>
 	  </footer>
@@ -188,12 +190,14 @@ $(document).ready(function(event) {
 	  <ul id="recent_posts">
 	  
 	      <li class="post">
-	        <a href="%E6%95%B0%E4%BB%93%E5%BB%BA%E6%A8%A1.html"><strong>数仓建模&nbsp;(5)</strong></a>
+	        <a href="%E6%95%B0%E4%BB%93%E5%BB%BA%E6%A8%A1.html"><strong>数仓建模&nbsp;(6)</strong></a>
 	         <p class="cat-children-p"> 
 	        
 	        	<a href="StarSchema%E7%AC%94%E8%AE%B0.html">StarSchema笔记&nbsp;(4)</a>&nbsp;&nbsp;
 	        
 	        	<a href="Data%20Vault.html">Data Vault&nbsp;(1)</a>&nbsp;&nbsp;
+	        
+	        	<a href="%E6%84%9F%E6%82%9F.html">感悟&nbsp;(1)</a>&nbsp;&nbsp;
 	        
 	         </p> 
 	      </li>
@@ -221,6 +225,12 @@ $(document).ready(function(event) {
 	  
 	      
 		      <li class="post">
+		        <a href="15139490782606.html">在阿里这一年，我的数据观</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
 		        <a href="14878594058587.html">Data Vault 模型初探</a>
 		      </li>
 	     
@@ -238,10 +248,6 @@ $(document).ready(function(event) {
 	     
 	  
 	      
-		      <li class="post">
-		        <a href="14870800072371.html">星型模型与多维数据集</a>
-		      </li>
-	     
 	  
 	      
 	   

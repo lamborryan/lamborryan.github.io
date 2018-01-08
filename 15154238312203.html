@@ -7,7 +7,7 @@
   <meta charset="utf-8">
   <title>
     
-  追风的蓝宝
+  JavaCC的使用总结 - 追风的蓝宝
   
 
   </title>
@@ -80,17 +80,14 @@ $(document).ready(function(event) {
 </nav>
   <div id="main">
     <div id="content"> 
-<div class="blog-index">
-
-	<article>
-		 <header>
-		  	<h1 class="entry-title"><a href="15154238312203.html">JavaCC的使用总结</a></h1>
-			<p class="meta"><time datetime="2018-01-08T23:03:51+08:00" 
-			pubdate data-updated="true">2018/1/8</time></p>
-		 </header>
-	  	<div class="entry-content">
-		  	
-		  	<ul>
+<div>
+	<article class="hentry" role="article">
+	<header>
+			  	<h1 class="entry-title">JavaCC的使用总结</h1>
+				<p class="meta"><time datetime="2018-01-08T23:03:51+08:00" pubdate data-updated="true">2018/1/8</time></p>
+			 </header>
+		  	<div class="entry-content">
+			  	<ul>
 <li>
 <a href="#toc_0">1.安装</a>
 </li>
@@ -646,389 +643,41 @@ identifier_list() &quot;,&quot; &lt;INT&gt;
 
 <h4 id="toc_15">本文完。</h4>
 
-
-		</div>
+			</div>
 
 		
+	  
+		<footer>
+		 <p class="meta">
 
-	</article>
- 
-	<article>
-		 <header>
-		  	<h1 class="entry-title"><a href="14878594058587.html">Data Vault 模型初探</a></h1>
-			<p class="meta"><time datetime="2017-02-23T22:16:45+08:00" 
-			pubdate data-updated="true">2017/2/23</time></p>
-		 </header>
-	  	<div class="entry-content">
-		  	
-		  	<ul>
-<li>
-<a href="#toc_0">Data Vault的定义</a>
-</li>
-<li>
-<a href="#toc_1">Data Vault的组件</a>
-<ul>
-<li>
-<a href="#toc_2">Hub</a>
-</li>
-<li>
-<a href="#toc_3">Link</a>
-</li>
-<li>
-<a href="#toc_4">Satellite</a>
-</li>
-<li>
-<a href="#toc_5">Point In Time 辅助表</a>
-</li>
-</ul>
-</li>
-<li>
-<a href="#toc_6">Data Vault的参考原则</a>
-<ul>
-<li>
-<a href="#toc_7">关于Hub的原则</a>
-</li>
-<li>
-<a href="#toc_8">关于Link的原则</a>
-</li>
-<li>
-<a href="#toc_9">关于Satellite的原则</a>
-</li>
-</ul>
-</li>
-<li>
-<a href="#toc_10">一些优化</a>
-</li>
-<li>
-<a href="#toc_11">Data Vault 2.0</a>
-</li>
-<li>
-<a href="#toc_12">数据集市</a>
-</li>
-<li>
-<a href="#toc_13">总结</a>
-</li>
-<li>
-<a href="#toc_14">参考文献</a>
-<ul>
-<li>
-<ul>
-<li>
-<a href="#toc_15">本文完</a>
-</li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
-
-
-<p>Data Vault被视为新一代的数据仓库技术，还是得到广泛的关注的。它综合了ER模型和Star Schema模型的一些优点，也克服了一些缺点。最近花了点时间学习了Data Vault模型，所以有了这篇文章。</p>
-
-
-
-		</div>
-
-		 
-		 <footer>
-      	<a rel="full-article" href="14878594058587.html#more">read more &rarr;</a>
-    	</footer>
-    	
-
-	</article>
- 
-	<article>
-		 <header>
-		  	<h1 class="entry-title"><a href="14876860100279.html">深入学习维度表</a></h1>
-			<p class="meta"><time datetime="2017-02-21T22:06:50+08:00" 
-			pubdate data-updated="true">2017/2/21</time></p>
-		 </header>
-	  	<div class="entry-content">
-		  	
-		  	<ul>
-<li>
-<a href="#toc_0">1. 组合维度</a>
-<ul>
-<li>
-<a href="#toc_1">1.1 关联维度属性的两种方法</a>
-<ul>
-<li>
-<a href="#toc_2">描述环境的明确关系</a>
-</li>
-<li>
-<a href="#toc_3">描述亲和性的隐含关系</a>
-</li>
-</ul>
-</li>
-<li>
-<a href="#toc_4">1.2 如何进行维度组合</a>
-</li>
-</ul>
-</li>
-<li>
-<a href="#toc_5">2. 拆分维度</a>
-<ul>
-<li>
-<a href="#toc_6">2.1 傻瓜式的拆分</a>
-</li>
-<li>
-<a href="#toc_7">2.2 使用微型维度来进行拆分</a>
-</li>
-</ul>
-</li>
-<li>
-<a href="#toc_8">3. 角色维度</a>
-</li>
-<li>
-<a href="#toc_9">4. 空值处理</a>
-<ul>
-<li>
-<a href="#toc_10">维度列</a>
-</li>
-<li>
-<a href="#toc_11">事实表的空外键</a>
-</li>
-<li>
-<a href="#toc_12">空值时的特殊处理</a>
-</li>
-</ul>
-</li>
-<li>
-<a href="#toc_13">5. 行为维度</a>
-<ul>
-<li>
-<a href="#toc_14">与另一个维度表关联</a>
-</li>
-<li>
-<a href="#toc_15">历史事实</a>
-</li>
-<li>
-<a href="#toc_16">分类事实</a>
-</li>
-<li>
-<a href="#toc_17">行为维度设计要素</a>
-</li>
-</ul>
-</li>
-<li>
-<a href="#toc_18">6. 总结</a>
-</li>
-</ul>
-
-
-<p>维度表是实现强有力分析的基础，本文主要介绍一些维度设计的高级主题。</p>
-
-
-
-		</div>
-
-		 
-		 <footer>
-      	<a rel="full-article" href="14876860100279.html#more">read more &rarr;</a>
-    	</footer>
-    	
-
-	</article>
- 
-	<article>
-		 <header>
-		  	<h1 class="entry-title"><a href="14875994254012.html">维度一致性问题</a></h1>
-			<p class="meta"><time datetime="2017-02-20T22:03:45+08:00" 
-			pubdate data-updated="true">2017/2/20</time></p>
-		 </header>
-	  	<div class="entry-content">
-		  	
-		  	<ul>
-<li>
-<a href="#toc_0">1. 维度与横向钻取</a>
-<ul>
-<li>
-<a href="#toc_1">1.1 造成横向钻取失败的原因</a>
-</li>
-</ul>
-</li>
-<li>
-<a href="#toc_2">2. 一致性维度</a>
-<ul>
-<li>
-<a href="#toc_3">2.1 共享维度表</a>
-</li>
-<li>
-<a href="#toc_4">2.2 一致性上卷维度</a>
-</li>
-<li>
-<a href="#toc_5">2.3 一致的退化维度</a>
-</li>
-<li>
-<a href="#toc_6">2.4 重叠维度</a>
-</li>
-</ul>
-</li>
-<li>
-<a href="#toc_7">3. 使用矩阵图表来规划一致性维度</a>
-</li>
-<li>
-<a href="#toc_8">4. 总结</a>
-</li>
-</ul>
-
-
-<p>维度表是整个数据仓库的骨架，好的维度表设计能确保整个数据仓库的高可用性，反之不好的维度表设计使得数据仓库可用性大大降低。如果维度表不能实现一致性，那么多个星型模型不能实现横向钻取，从而形成信息孤岛。</p>
-
-<p>本文主要介绍维度表的一致性要求以及问题。</p>
-
-
-
-		</div>
-
-		 
-		 <footer>
-      	<a rel="full-article" href="14875994254012.html#more">read more &rarr;</a>
-    	</footer>
-    	
-
-	</article>
- 
-	<article>
-		 <header>
-		  	<h1 class="entry-title"><a href="14870800072371.html">星型模型与多维数据集</a></h1>
-			<p class="meta"><time datetime="2017-02-14T21:46:47+08:00" 
-			pubdate data-updated="true">2017/2/14</time></p>
-		 </header>
-	  	<div class="entry-content">
-		  	
-		  	<ul>
-<li>
-<a href="#toc_0">1.维度表特性</a>
-<ul>
-<li>
-<a href="#toc_1">1.1 代理键和自然键</a>
-</li>
-<li>
-<a href="#toc_2">1.2 丰富的维度集合</a>
-<ul>
-<li>
-<a href="#toc_3">公共组合</a>
-</li>
-<li>
-<a href="#toc_4">代码与描述符</a>
-</li>
-<li>
-<a href="#toc_5">标志及标志值</a>
-</li>
-<li>
-<a href="#toc_6">多列组合字段</a>
-</li>
-<li>
-<a href="#toc_7">带有数字值的维度</a>
-</li>
-<li>
-<a href="#toc_8">行为维度与混合属性</a>
-</li>
-<li>
-<a href="#toc_9">基于相似性组合维度</a>
-</li>
-<li>
-<a href="#toc_10">无相似性的杂项维度</a>
-</li>
-<li>
-<a href="#toc_11">雪花模型和支架表</a>
-</li>
-</ul>
-</li>
-</ul>
-</li>
-<li>
-<a href="#toc_12">2. 事实表特性</a>
-<ul>
-<li>
-<a href="#toc_13">具有不同时间的事实</a>
-</li>
-<li>
-<a href="#toc_14">具有不同粒度的事实</a>
-</li>
-<li>
-<a href="#toc_15">多业务过程事实表</a>
-</li>
-<li>
-<a href="#toc_16">事实表的横向钻取</a>
-</li>
-</ul>
-</li>
-<li>
-<a href="#toc_17">3. 缓慢变化维</a>
-<ul>
-<li>
-<a href="#toc_18">3.1 变化类型1</a>
-</li>
-<li>
-<a href="#toc_19">3.2 变化类型２</a>
-</li>
-<li>
-<a href="#toc_20">3.3 如何选择变化类型</a>
-</li>
-</ul>
-</li>
-</ul>
-
-
-
-
-		</div>
-
-		 
-		 <footer>
-      	<a rel="full-article" href="14870800072371.html#more">read more &rarr;</a>
-    	</footer>
-    	
-
-	</article>
- 
-	<article>
-		 <header>
-		  	<h1 class="entry-title"><a href="14869984530295.html">企业级数据仓库体系结构</a></h1>
-			<p class="meta"><time datetime="2017-02-13T23:07:33+08:00" 
-			pubdate data-updated="true">2017/2/13</time></p>
-		 </header>
-	  	<div class="entry-content">
-		  	
-		  	<ul>
-<li>
-<a href="#toc_0">企业级数据仓库体系结构分类</a>
-</li>
-<li>
-<a href="#toc_1">Inmon的企业信息化工程</a>
-</li>
-<li>
-<a href="#toc_2">Kimball的维度数据仓库</a>
-</li>
-<li>
-<a href="#toc_3">独立型数据集市</a>
-</li>
-<li>
-<a href="#toc_4">体系结构和维度设计</a>
-</li>
-</ul>
-
-
-
-
-		</div>
-
-		 
-		 <footer>
-      	<a rel="full-article" href="14869984530295.html#more">read more &rarr;</a>
-    	</footer>
-    	
-
-	</article>
-  
-	<div class="pagination">
-	
-<a href="archives.html">Blog Archives</a>
-	 
+			<strong>Categories:</strong>&nbsp; 
+			<span class="categories">
+			
+			    <a class='category' href='Apache%20Calcite.html'>Apache Calcite</a>&nbsp;
+			 
+			</span>
+		    </p>
+		    <p class="meta">
+		      
+		 </p>
 	    
-	</div>
+		<div class="sharing">
+		  
+          
+
+          
+
+		</div>
+
+	    <p class="meta">
+	    
+	    
+	        <a class="basic-alignment right" href="14878594058587.html" 
+	        title="Next Post: Data Vault 模型初探">Data Vault 模型初探 &raquo;</a>
+	    
+	    </p>
+	  </footer>
+	</article>
 </div>
  <aside class="sidebar"> 
 

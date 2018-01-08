@@ -84,6 +84,577 @@ $(document).ready(function(event) {
 
 	<article>
 		 <header>
+		  	<h1 class="entry-title"><a href="15154238312203.html">JavaCC的使用总结</a></h1>
+			<p class="meta"><time datetime="2018-01-08T23:03:51+08:00" 
+			pubdate data-updated="true">2018/1/8</time></p>
+		 </header>
+	  	<div class="entry-content">
+		  	
+		  	<ul>
+<li>
+<a href="#toc_0">1.安装</a>
+</li>
+<li>
+<a href="#toc_1">2.文件格式</a>
+<ul>
+<li>
+<ul>
+<li>
+<a href="#toc_2">2.1Options部分</a>
+</li>
+<li>
+<a href="#toc_3">2.2分析器类的声明</a>
+</li>
+<li>
+<a href="#toc_4">2.3词法规则定义</a>
+<ul>
+<li>
+<a href="#toc_5">1.SKIP用来说明被忽略的串, 比如碰到以下字符就跳过。</a>
+</li>
+<li>
+<a href="#toc_6">2.TOKEN，用来说明在词法层次上识别的token，比如解析到字母就归为ID这个Token，解析到字母就归属于NUM这个TOKEN。</a>
+</li>
+<li>
+<a href="#toc_7">3.语法规则</a>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<a href="#toc_8">3.Lookahead</a>
+<ul>
+<li>
+<a href="#toc_9">3.1 什么是Lookahead</a>
+</li>
+<li>
+<a href="#toc_10">3.2 语法解析器的选择顺序</a>
+</li>
+<li>
+<a href="#toc_11">3.3 怎么使用lookahed</a>
+<ul>
+<li>
+<ul>
+<li>
+<a href="#toc_12">Lookahead的一般模式</a>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<a href="#toc_13">4.总结</a>
+</li>
+<li>
+<a href="#toc_14">5. 参考文献</a>
+<ul>
+<li>
+<ul>
+<li>
+<a href="#toc_15">本文完。</a>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+
+<hr/>
+
+<p>最近项目SQL解析模块用到Apache Calcite了，由于需要自己定义一些语法，因此花了一段时间研究了其中的JavaCC，本文全当是笔记免得以后忘记。</p>
+
+<p>Sql解析的第一步往往是将一串SQL字符串进行词法和语法解析。</p>
+
+<p>所谓词法分析，就是将一行行的字符串按照实现定好的格式分割成一个个单词字符Token,比如<code>sql SELECT 1+1 FROM tb WHERE;</code>经过词法分析后就变成了单词<code>SELECT, 1, +, 1, FROM, tb, WHERE</code>。</p>
+
+<p>而语法分析内，就是分析词法分析后的这些Token，是否符合事先定好的语法的一个，否则就会解析报错。</p>
+
+<p>再这之后就是生成抽象语法树。JavaCC是一个不错的词法和语法解析器，它完全使用Java实现的。我们可以基于JavaCC来构建抽象语法树，比如Calcite。</p>
+
+<p>本文主要简单介绍下使用JavaCC如何来实现词法和语法的分析。</p>
+
+<h2 id="toc_0">1.安装</h2>
+
+<p>安装不是本文的重点，只是说明JavaCC的语法是写在.jj文件上，而目前只有Eclipse支持JavaCC插件，Intelij Idea暂不支持。要知道开发.jj文件，是件很痛苦的事情，没有这个插件怎么受得了。<br/>
+<a href="https://sourceforge.net/projects/eclipse-javacc/files/">JavaCC Eclipse插件</a></p>
+
+<h2 id="toc_1">2.文件格式</h2>
+
+<p>一个JJ文件主要有以下几部分组成：</p>
+
+<h4 id="toc_2">2.1Options部分</h4>
+
+<p>这个部分对产生的语法分析器的特性进行说明，例如向前看的token的个数（用来解除冲突）。这一部分是可以省略的，因为每一个选项都有默认值，当我们没有对某个选项进行说明时，它就采用默认值。也可以把这些选项作为javacc命令的参数来启动javacc，可以达到同样的效果。</p>
+
+<pre><code class="language-java">options  
+{  
+  JDK_VERSION = &quot;1.8&quot;;   # Java版本
+  STATIC = false;   # 是否以静态方法的方式提供
+} 
+</code></pre>
+
+<p>更多的配置见<a href="https://javacc.org/javaccgrm">这里</a></p>
+
+<h4 id="toc_3">2.2分析器类的声明</h4>
+
+<p>这个部分指定了分析器类的名字，以及其他类中成员的声明。这个部分是必须有的, 他就是正常的Java代码。这个部分的声明如下：</p>
+
+<pre><code class="language-java">PARSER_BEGIN(classname)
+Class classname {
+       ……
+}
+PARSER_END(classname)
+</code></pre>
+
+<h4 id="toc_4">2.3词法规则定义</h4>
+
+<p>这里面有四类：SKIP、TOKEN、SPECIAL_TOKEN、MORE。</p>
+
+<h5 id="toc_5">1.SKIP用来说明被忽略的串, 比如碰到以下字符就跳过。</h5>
+
+<pre><code class="language-java">SKIP {
+       “ “
+|
+       “\n”
+|
+       “\r”
+}
+</code></pre>
+
+<h5 id="toc_6">2.TOKEN，用来说明在词法层次上识别的token，比如解析到字母就归为ID这个Token，解析到字母就归属于NUM这个TOKEN。</h5>
+
+<pre><code class="language-java">TOKEN {
+       &lt;ID: (“a”-“z”|”A”-“Z”)+&gt;
+|
+       &lt;NUM: (“0”-“9”)+&gt;
+}
+</code></pre>
+
+<p>在词法声明部分，以#开头的token只是在词法分析时使用，不能作为语法分析的输入，也就是说，它相对词法分析是局部的。</p>
+
+<h5 id="toc_7">3.语法规则</h5>
+
+<p>语义规则中支持Java代码，生成的代码会直接插入分析器类声明的结束括号之前。开头是一个声明，包括返回值类型、规则名和一个冒号。对于这样一条语法规则，JavaCC就会在语法分析器类中生成一个同名的方法。紧接着的一对花括号中写一些变量声明。下一对花括号中写该规则的具体内容。<br/>
+一个语法单元中有多个规则时，用|分开。每个规则都有一系列词法或语法单元组成，每个词法或者语法单元之后跟着一对花括号，里面写处理的代码。如下所示</p>
+
+<pre><code class="language-java">Return_type function_name()
+
+{     
+    # Java代码模块
+    # 变量声明和一些初始化的动作
+}
+{
+
+&lt;!--       上下文无关文法的右部分，
+       其中每个组成部分的形式如下：
+       语法部分 {动作部分}
+       两个部分都可以省略。语法部分可以是一个字符串（简单的
+       token常常可以这样处理），TOKEN中声明的token，或一个
+       对某个非终结符对应的函数的调用。--&gt;
+}
+</code></pre>
+
+<p>我们拿Calcite的一段来进行看看如何定义语法。<br/>
+以下定义了两个语法规则，GroupBy的语法规则，以及GroupBy的元素的语法规则。</p>
+
+<pre><code class="language-java">/**
+ * Parses the optional GROUP BY clause for SELECT.
+ */
+SqlNodeList GroupByOpt() :
+{   
+    # 定义JAVA的变量并初始化
+    List&lt;SqlNode&gt; list = Lists.newArrayList();
+    final Span s;
+}
+{
+    &lt;GROUP&gt; # 语法解析要求先有GRPUP TOKEN 
+    
+    { s = span(); } # JAVA代码，计算Group Token在字符串的位置
+    
+    &lt;BY&gt; # 接着必须跟上BY TOKEN
+    
+    list = GroupingElementList()  # BY后面是一串的Group 元素，调用GroupingElementList的语法故障函数
+    
+    # 最后生成JAVA 代码，生成GroupBy的Statement，也就是AST的一个节点。
+    {
+        return new SqlNodeList(list, s.addAll(list).pos());
+    }
+    
+| # 或者的意思，要么匹配上Group Token进入上面那个分支，要么没有匹配上没有Group 语句。
+    
+    {
+        return null;
+    }
+}
+
+List&lt;SqlNode&gt; GroupingElementList() :
+{
+    List&lt;SqlNode&gt; list = Lists.newArrayList();
+    SqlNode e;
+}
+{
+    e = GroupingElement() { list.add(e); }
+    (
+        &lt;COMMA&gt;
+        e = GroupingElement() { list.add(e); }
+    )*
+    { return list; }
+}
+</code></pre>
+
+<p>其中用到一些标记跟正则的一样：</p>
+
+<ul>
+<li>[]：其中的内容是可选的。</li>
+<li>+：前面的内容出现一次或多次。</li>
+<li>-：前后构成的闭区间。</li>
+<li>*: 前面的内容出现0次或多次。</li>
+<li>?：前面的内容出现0次或一次。</li>
+<li>~：后面的内容的补。</li>
+<li>：前面或后面。</li>
+<li>()：改变运算的优先级，把其中的内容作为一个整体。</li>
+</ul>
+
+<p>语义解析的规则比较灵活，完全可以基于这个代码构建AST。</p>
+
+<h2 id="toc_8">3.Lookahead</h2>
+
+<p>javacc有一些问题，即它采用的是自顶向下的分析方法，而且没有回溯功能，因此如何解决冲突的问题，是程序员的责任。如果词法规则有二义性，JavaCC会给出警告，一定不要忽略这些警告。此外，JavaCC只对开头存在二义性的词法给出警告（一个字符可以作为两个词法规则的第一个字符），有些词法上的冲突是需要我们自己去注意的。</p>
+
+<p>不过Java使用LookAhead的方法帮助我们来解决冲突。</p>
+
+<h3 id="toc_9">3.1 什么是Lookahead</h3>
+
+<p>假设以下这个语义规则</p>
+
+<pre><code class="language-java">void Input() :
+{}
+{
+&quot;a&quot; BC() &quot;c&quot;
+}
+
+void BC() :
+{}
+{
+&quot;b&quot; [ &quot;c&quot; ]
+}
+</code></pre>
+
+<p>假设有两个字符串 <code>abc</code>, 我们来模拟下语法解析过程。</p>
+
+<ul>
+<li>1. 首先输入a字符，发现只有1个选择，即a是命中的。</li>
+<li>2. 第二步是b字符，同样只有1个选择，即进入到BC规则中，命中B。</li>
+<li>3. 第三步是c字符，我们有两个选择，命中BC规则的c还是跳出BC规则从而命中外层的c呢，那我们首先选择命中BC规则的c。</li>
+<li>4. 第四步BC规则已经结束，那么跳出BC，进入外层，外层需要匹配c，但是我们已经没有字符了，所以刚才的步骤是错的。</li>
+<li>5. 第五步就是回溯到第三步，然后我们选择忽略BC规则的c，然后跳出bc，命中外层的c。因此解析完成。</li>
+</ul>
+
+<p>上面的这个例子存在这二义性，很遗憾JavaCC不支持这样的回溯，因此我们得用其他的方法来解决。</p>
+
+<p>我们可以用以下的规则来替换:</p>
+
+<pre><code class="language-java">void Input() :
+{}
+{
+&quot;a&quot; &quot;b&quot; &quot;c&quot; [ &quot;c&quot; ]
+}
+</code></pre>
+
+<p>或者</p>
+
+<pre><code class="language-sql">void Input() :
+  {}
+  {
+    &quot;a&quot; &quot;b&quot; &quot;c&quot; &quot;c&quot;
+  |
+    &quot;a&quot; &quot;b&quot; &quot;c&quot;
+  }
+</code></pre>
+
+<p>我们建议使用第一种规则，因为它只需要遍历一遍就可以了，而第二种提供的第一种选择<code>abcc</code>不符合<code>abc</code>，所以它提供的第二种选择仍然需要再遍历一遍。</p>
+
+<p>所以我们写语法规则很重要，不但影响结果，也影响性能。</p>
+
+<p>而所谓的Lookahead，就是往前能看的字符数，默认是1. 比如上面的lookahead 就是只能看到下一个字符。</p>
+
+<h3 id="toc_10">3.2 语法解析器的选择顺序</h3>
+
+<p>语法解析采用自定向下的顺序进行选择，比如以下这个语法规则：</p>
+
+<pre><code class="language-java">  void basic_expr() :
+  {}
+  {
+    &lt;ID&gt; &quot;(&quot; expr() &quot;)&quot; // Choice 1
+  |
+    &quot;(&quot; expr() &quot;)&quot;  // Choice 2
+  |
+    &quot;new&quot; &lt;ID&gt;    // Choice 3
+  }
+</code></pre>
+
+<p>它的选择顺序可以用伪代码表示, 由此可见它是按照代码的顺序来选择的。</p>
+
+<pre><code class="language-java">if (next token is &lt;ID&gt;) {
+    choose Choice 1
+  } else if (next token is &quot;(&quot;) {
+    choose Choice 2
+  } else if (next token is &quot;new&quot;) {
+    choose Choice 3
+  } else {
+    produce an error message
+  }
+</code></pre>
+
+<p><strong><em>Example1</em></strong></p>
+
+<p>在lookhead为1的情况下，JavaCC如果选择了前一个分支就不会进入下一个分支了，比如以下如果首先输入<ID> Token就会进入第一个分支，不会再进入第一个分支及时接下来的是字符是&quot;.&quot;。而因为第一个分支没有匹配上所以会报解析错误。</p>
+
+<pre><code class="language-java">  void basic_expr() :
+  {}
+  {
+    &lt;ID&gt; &quot;(&quot; expr() &quot;)&quot; // Choice 1
+  |
+    &quot;(&quot; expr() &quot;)&quot;  // Choice 2
+  |
+    &quot;new&quot; &lt;ID&gt;    // Choice 3
+  |
+    &lt;ID&gt; &quot;.&quot; &lt;ID&gt;   // Choice 4
+  }
+</code></pre>
+
+<p>不过幸好JAVA会提醒你有错误，我们需要充分解决这些冲突，它也给你提供了意见Lookahead设置为2.</p>
+
+<pre><code class="language-java">Warning: Choice conflict involving two expansions at
+         line 25, column 3 and line 31, column 3 respectively.
+         A common prefix is: &lt;ID&gt;
+         Consider using a lookahead of 2 for earlier expansion.
+
+</code></pre>
+
+<p><strong><em>Example2</em></strong></p>
+
+<p>我们再来看一个冲突的例子，</p>
+
+<pre><code class="language-java">  void identifier_list() :
+  {}
+  {
+    &lt;ID&gt; ( &quot;,&quot; &lt;ID&gt; )*
+  }
+</code></pre>
+
+<p>它的选择逻辑伪代码如下：</p>
+
+<pre><code class="language-java">while (next token is &quot;,&quot;) {
+    choose the nested expansion (i.e., go into the (...)* construct)
+    consume the &quot;,&quot; token
+    if (next token is &lt;ID&gt;) consume it, otherwise report error
+  }
+</code></pre>
+
+<p>如果我在其他语法规则上调用identifier_list这个规则，</p>
+
+<pre><code class="language-java">void funny_list() :
+{}
+{
+identifier_list() &quot;,&quot; &lt;INT&gt;
+}
+</code></pre>
+
+<p>那么又会有以下的警告,因为语法解析器不知道，&#39;,&#39;应该属于内层identifier_list的还是最外层的，它决定了后面的字符是否能命中<code>&lt;INT&gt;</code>。</p>
+
+<pre><code class="language-java">Warning: Choice conflict in (...)* construct at line 25, column 8.
+         Expansion nested within construct and expansion following construct
+         have common prefixes, one of which is: &quot;,&quot;
+         Consider using a lookahead of 2 or more for nested expansion.
+
+</code></pre>
+
+<p>而解决这个问题需要我们重写解析规则,主要原则，能尽量使用不同的TOKEN。</p>
+
+<pre><code class="language-java">  void funny_list() :
+  {}
+  {
+    &lt;ID&gt; &quot;,&quot; ( &lt;ID&gt; &quot;,&quot; )* &lt;INT&gt;
+  }
+
+</code></pre>
+
+<h3 id="toc_11">3.3 怎么使用lookahed</h3>
+
+<p>当有时候，语法规则太复杂，无法进行重写后优化，那我们可以来修改lookahead。</p>
+
+<p>我们可以设置全局的lookahead 在Option部分。也可以设置局部的部分。因为增加lookahead值后面比较的字符长度，因此值越大性能越差，我们建议使用局部的。</p>
+
+<p>我们用设置lookahead的方法来解决之前例子碰到的问题</p>
+
+<p><strong><em>Example1</em></strong></p>
+
+<pre><code class="language-java">  void basic_expr() :
+  {}
+  {
+    LOOKAHEAD(2)
+    &lt;ID&gt; &quot;(&quot; expr() &quot;)&quot; // Choice 1
+  |
+    &quot;(&quot; expr() &quot;)&quot;  // Choice 2
+  |
+    &quot;new&quot; &lt;ID&gt;    // Choice 3
+  |
+    &lt;ID&gt; &quot;.&quot; &lt;ID&gt;   // Choice 4
+  }
+
+</code></pre>
+
+<p>它的解析选择逻辑的伪代码:</p>
+
+<pre><code class="language-java"> if (next 2 tokens are &lt;ID&gt; and &quot;(&quot; ) {
+    choose Choice 1
+  } else if (next token is &quot;(&quot;) {
+    choose Choice 2
+  } else if (next token is &quot;new&quot;) {
+    choose Choice 3
+  } else if (next token is &lt;ID&gt;) {
+    choose Choice 4
+  } else {
+    produce an error message
+  }
+</code></pre>
+
+<p>当我们优选读取两个字符并进行比较时候，当我们输入<code>&lt;ID&gt;.&lt;ID&gt;</code>时候就会进入第4分支。</p>
+
+<p>同样 <strong><em>Example2</em></strong><br/>
+<code>java<br/>
+  void identifier_list() :<br/>
+  {}<br/>
+  {<br/>
+    &lt;ID&gt; ( LOOKAHEAD(2) &quot;,&quot; &lt;ID&gt; )*<br/>
+  }<br/>
+</code></p>
+
+<pre><code class="language-java"> while (next 2 tokens are &quot;,&quot; and &lt;ID&gt;) {
+    choose the nested expansion (i.e., go into the (...)* construct)
+    consume the &quot;,&quot; token
+    consume the &lt;ID&gt; token
+  }
+</code></pre>
+
+<h5 id="toc_12">Lookahead的一般模式</h5>
+
+<pre><code class="language-java"> LOOKAHEAD( amount,
+             expansion,
+             { boolean_expression }
+           )
+</code></pre>
+
+<p>amount指定了Lookahead的token个数， expansion 指定了lookahead的句法条件，boolean_expression指定了lookahead的语法条件。</p>
+
+<p>如果expansion指定了，那么amount的默认值是2147483647。也就是说lookahead无限大，直到找到了符合expansion句法条件的token为止。</p>
+
+<p>否则的话amount默认为0(boolean_expression必须被指定，boolean_expression为true)。</p>
+
+<p>我们来看以下几个例子</p>
+
+<p><strong><em>Example3</em></strong></p>
+
+<pre><code class="language-java">
+## 一直找到ClassDeclaration的Token条件，否则就lookahead长度2147483647。
+  void TypeDeclaration() :
+  {}
+  {
+    LOOKAHEAD(ClassDeclaration()) 
+    ClassDeclaration()
+  |
+    InterfaceDeclaration()
+  }
+  
+  ## 解析伪代码
+    if (the tokens from the input stream match ClassDeclaration) {
+    choose ClassDeclaration()
+  } else if (next token matches InterfaceDeclaration) {
+    choose InterfaceDeclaration()
+  } else {
+    produce an error message
+  }
+
+</code></pre>
+
+<p><strong><em>Example4</em></strong></p>
+
+<pre><code class="language-java">
+  void TypeDeclaration() :
+  {}
+  {
+    # 在10个字符以及匹配到class中满足一个就性
+    LOOKAHEAD(10, ( &quot;abstract&quot; | &quot;final&quot; | &quot;public&quot; )* &quot;class&quot; )
+    ClassDeclaration()
+  |
+    InterfaceDeclaration()
+  }
+  
+  # 语法解析伪代码
+  
+    if (the nest set of tokens from the input stream are a sequence of
+      &quot;abstract&quot;s, &quot;final&quot;s, and &quot;public&quot;s followed by a &quot;class&quot; and LOOKAHEAD determination is not permitted to go beyond 10 tokens.) {
+    choose ClassDeclaration()
+  } else if (next token matches InterfaceDeclaration) {
+    choose InterfaceDeclaration()
+  } else {
+    produce an error message
+  }
+</code></pre>
+
+<p><strong><em>Example5</em></strong></p>
+
+<pre><code class="language-java">  void BC() :
+  {}
+  {
+    &quot;b&quot;
+    [ LOOKAHEAD( { getToken(1).kind == C &amp;&amp; getToken(2).kind != C } )
+      &lt;C:&quot;c&quot;&gt;
+    ]
+  }
+  
+  # 语法解析逻辑伪代码
+    if (next token is &quot;c&quot; and following token is not &quot;c&quot;) {
+    choose the nested expansion (i.e., go into the [...] construct)
+  } else {
+    go beyond the [...] construct without entering it.
+  }
+</code></pre>
+
+<p>*** 总体来说lookahead的功能还是很强大且灵活的，我们合理使用lookahead以及优化解析逻辑相结合往往能解决碰到的冲突 ***</p>
+
+<h2 id="toc_13">4.总结</h2>
+
+<p>本文基于一些参考资料，以及总结我使用JavaCC的心得，对JavaCC如何使用以及如何解决冲突进行描述。</p>
+
+<h2 id="toc_14">5. 参考文献</h2>
+
+<ul>
+<li><a href="https://javacc.org/tutorials/lookahead">JavaCC官方文档</a></li>
+<li><a href="http://zhoujinhuang.iteye.com/blog/169252">JAVACC 入门</a></li>
+<li><a href="https://github.com/apache/calcite">Apache Calcite</a></li>
+<li><a href="http://blog.csdn.net/bhq2010/article/details/8763920">JavaCC使用小结</a></li>
+</ul>
+
+<hr/>
+
+<h4 id="toc_15">本文完。</h4>
+
+
+		</div>
+
+		
+
+	</article>
+ 
+	<article>
+		 <header>
 		  	<h1 class="entry-title"><a href="14878594058587.html">Data Vault 模型初探</a></h1>
 			<p class="meta"><time datetime="2017-02-23T22:16:45+08:00" 
 			pubdate data-updated="true">2017/2/23</time></p>
@@ -475,12 +1046,27 @@ $(document).ready(function(event) {
 	        
 	         </p> 
 	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%BC%80%E6%BA%90%E6%8A%80%E6%9C%AF.html"><strong>开源技术&nbsp;(1)</strong></a>
+	         <p class="cat-children-p"> 
+	        
+	        	<a href="Apache%20Calcite.html">Apache Calcite&nbsp;(1)</a>&nbsp;&nbsp;
+	        
+	         </p> 
+	      </li>
 	   
 	  </ul>
 	</section>
 	<section>
 	  <h1>Recent Posts</h1>
 	  <ul id="recent_posts">
+	  
+	      
+		      <li class="post">
+		        <a href="15154238312203.html">JavaCC的使用总结</a>
+		      </li>
+	     
 	  
 	      
 		      <li class="post">
@@ -507,10 +1093,6 @@ $(document).ready(function(event) {
 	     
 	  
 	      
-		      <li class="post">
-		        <a href="14869984530295.html">企业级数据仓库体系结构</a>
-		      </li>
-	     
 	   
 	  </ul>
 	</section>
