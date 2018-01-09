@@ -4,7 +4,7 @@
   <title><![CDATA[追风的蓝宝]]></title>
   <link href="www.lamborryan.com/atom.xml" rel="self"/>
   <link href="www.lamborryan.com/"/>
-  <updated>2018-01-08T23:09:56+08:00</updated>
+  <updated>2018-01-09T22:19:32+08:00</updated>
   <id>www.lamborryan.com/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -38,7 +38,7 @@
 
 <p>因此以前在<a href="http://www.cnblogs.com/rcfeng/">博客园</a>写了不少关于Solr/SolrCloud的博客, 文章有点多就不一一迁移过来了, 就在这里建个导航。</p>
 
-<!--more-->
+<span id="more"></span><!-- more -->
 
 <h2 id="toc_1">目录</h2>
 
@@ -130,7 +130,7 @@
 
 <p>因此本文主要介绍Extractor如何实现上述描述的功能。目前Gobblin支持且常用的Extractor有MysqlExtractor, KafkaSimpleSource等等, 本文依然以MysqlExtractor为例来介绍Extractor。</p>
 
-<!--more-->
+<span id="more"></span><!-- more -->
 
 <h2 id="toc_1">二. MysqlExtractor的类继承关系。</h2>
 
@@ -285,7 +285,7 @@ private Iterator&lt;D&gt; getIterator()
 
 <p>这些功能都是通过Source接口实现的。</p>
 
-<!--more-->
+<span id="more"></span><!-- more -->
 
 <pre><code class="language-java">/*
  * An interface for classes that the end users implement to work with a data source from which
@@ -779,7 +779,7 @@ public interface Source&lt;S, D&gt; {
 
 <p>Gobblin实在是有太多的state了, 比如SourceState, JobState, DatasetState, WorkUnit等等. 而这些State又跟整个Gobblin的各个阶段密切联系, 所以我独立出一篇文章来理顺下这些State。</p>
 
-<!-- more-->
+<span id="more"></span><!-- more -->
 
 <p>本文借鉴了这篇文档<a href="http://gobblin.readthedocs.org/en/latest/user-guide/State-Management-and-Watermarks/#gobblin-state-deep-dive">《gobblin-state-deep-dive》</a></p>
 
@@ -1076,7 +1076,7 @@ public class TaskState extends WorkUnitState {
 
 <p>Gobblin的writer功能还是很强大的, 该Stage负责将record写入临时文件中。由于项目的需要, 要求把每天的kafka日志按照日期按天输出到不同的目录。所以花了一天时间研究了Writer的源码和流程。</p>
 
-<!--more-->
+<span id="more"></span><!-- more -->
 
 <h2 id="toc_1">流程简述</h2>
 
