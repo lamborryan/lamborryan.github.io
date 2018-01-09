@@ -1,0 +1,404 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>
+    
+  Gobblin系列(2)之History Store 和 Admin Server - 追风的蓝宝
+  
+
+  </title>
+  <meta name="author" content="">
+  <meta name="description" content="爱好大数据与开源技术">
+
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <link href="asset/css/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="atom.xml" rel="alternate" title="追风的蓝宝" type="application/atom+xml">
+  <script src="asset/js/modernizr-2.0.js"></script>
+  <script src="asset/js/jquery.min.js"></script>
+  <script src="asset/highlightjs/highlight.pack.js"></script>
+  <link href="asset/highlightjs/styles/solarized_light.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script>hljs.initHighlightingOnLoad();</script>
+
+  <style type="text/css">
+  .cat-children-p{ padding: 6px 0px;}
+  .hljs{background: none;}
+  </style>
+  <script type="text/javascript">
+  var isAddSildbar = true;
+  </script>
+  <script src="asset/js/octopress.js" type="text/javascript"></script>
+</head>
+<script type="text/javascript">
+//链接新开窗口
+function addBlankTargetForLinks () {
+  $('a[href^="http"]').each(function(){
+      $(this).attr('target', '_blank');
+  });
+}
+$(document).ready(function(event) {
+  addBlankTargetForLinks();
+});
+</script>
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="index.html">追风的蓝宝</a></h1>
+  
+    <h2>爱好大数据与开源技术</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:www.lamborryan.com" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+
+  <li id=""><a target="_self" href="index.html">Home</a></li>
+
+  <li id=""><a target="_self" href="archives.html">Archives</a></li>
+
+  <li id=""><a target="_self" href="about.html">About</a></li>
+
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content"> 
+<div>
+	<article class="hentry" role="article">
+	<header>
+			  	<h1 class="entry-title">Gobblin系列(2)之History Store 和 Admin Server</h1>
+				<p class="meta"><time datetime="2018-01-09T22:00:36+08:00" pubdate data-updated="true">2018/1/9</time></p>
+			 </header>
+		  	<div class="entry-content">
+			  	<ul>
+<li>
+<a href="#toc_0">简介</a>
+</li>
+<li>
+<a href="#toc_1">History Store</a>
+</li>
+<li>
+<a href="#toc_2">Admin Server</a>
+<ul>
+<li>
+<a href="#toc_3">Web Ui</a>
+</li>
+<li>
+<a href="#toc_4">client</a>
+</li>
+</ul>
+</li>
+<li>
+<a href="#toc_5">总结</a>
+<ul>
+<li>
+<a href="#toc_6">展示所有的job(相同的job只显示一个)</a>
+</li>
+<li>
+<a href="#toc_7">展示job的所有历史记录</a>
+</li>
+<li>
+<a href="#toc_8">展示某个job实例的detail信息, 可查看task, properties[View Job Properties]和metrix[View Metrics]</a>
+</li>
+</ul>
+</li>
+</ul>
+
+
+<h2 id="toc_0">简介</h2>
+
+<p>在阅读Gobblin的时候突然发现Gobblin其实是自带一个Admin Server以及History Store来存放历史的job运行数据, 所以也就研究了下这块内容。 这也反应了Gobblin的一个缺点即文档和资料的缺乏, 不过还好有源码。</p>
+
+<span id="more"></span><!-- more -->
+
+<h2 id="toc_1">History Store</h2>
+
+<p>History Store的内容在<a href="https://github.com/linkedin/gobblin/wiki/Job%20Execution%20History%20Store">《Gobblin文档》</a>里有介绍, 代码对应gobblin-metastore package.</p>
+
+<p>History Store 数据是存放在mysql上，所以需要在配置中加入以下内容:</p>
+
+<ul>
+<li>job.history.store.enabled=true</li>
+<li>job.history.store.url=jdbc:mysql://data1/gobblin?createDatabaseIfNotExist=true</li>
+<li>job.history.store.jdbc.driver=com.mysql.jdbc.Driver</li>
+<li>job.history.store.user=gobblin</li>
+<li>job.history.store.password=gobblin</li>
+</ul>
+
+<p>但是配置完以后并不能立马就实现, 这是因为gobblin不会自动生成元数据表, 这一点有点挫.</p>
+
+<p>所以需要手动建立gobblin数据库, 然后再在gobblin数据库内建相应的表。关于表的字段请自己看文档。</p>
+
+<ul>
+<li>gobblin_job_executions</li>
+<li>gobblin_task_executions</li>
+<li>gobblin_job_metrics</li>
+<li>gobblin_task_metrics</li>
+<li>gobblin_job_properties</li>
+<li>gobblin_task_properties</li>
+</ul>
+
+<p>好在, gobblin-metastore package自带了建表的sql: gobblin_job_history_store.sql。</p>
+
+<p>这样每次执行完job, job的status和metrix就会保存在gobblin数据库里, 这位Admin Server来监控数据提供了先觉条件。</p>
+
+<h2 id="toc_2">Admin Server</h2>
+
+<h3 id="toc_3">Web Ui</h3>
+
+<p>有了History Admin, 那么我们可以通过Admin Server来监控历史job的运行状况。默认情况下是不启动Admin Server, 我们来看下源码。跟Admin Server有关的package有以下几个</p>
+
+<ul>
+<li>gobblin-admin: admin 管理界面, 包括server和client. Admin Server是基于jetty运行的, 通过与rest server来获取具体数据;</li>
+<li>gobblin-rest-server: rest server是一个运行Rest.li的服务, 主要处理请求以及history store查询;</li>
+<li>gobblin-rest-api: Rest api, 暂不介绍。</li>
+<li>gobblin-rest-client: Rest.li 客户端, 与Rest Server交互获取job执行信息。</li>
+</ul>
+
+<p>由此可见要进行admin 监控, 至少需要启两个服务:admin Server, rest server 并配置开启history store.</p>
+
+<pre><code class="language-java">public SchedulerDaemon(Properties defaultProperties, Properties customProperties)
+    throws Exception {
+  Properties properties = new Properties();
+  properties.putAll(defaultProperties);
+  properties.putAll(customProperties);
+
+  List&lt;Service&gt; services = Lists.&lt;Service&gt;newArrayList(new JobScheduler(properties));
+  boolean jobExecInfoServerEnabled = Boolean
+      .valueOf(properties.getProperty(ConfigurationKeys.JOB_EXECINFO_SERVER_ENABLED_KEY, Boolean.FALSE.toString()));
+  if (jobExecInfoServerEnabled) {
+    JobExecutionInfoServer executionInfoServer = new JobExecutionInfoServer(properties);
+    services.add(executionInfoServer);
+    if (shouldRunAdminServer(properties)) {
+      services.add(new AdminWebServer(properties, executionInfoServer.getServerUri()));
+    }
+  }
+  this.serviceManager = new ServiceManager(services);
+}
+</code></pre>
+
+<p>在SchedulerDaemon里面会启动2个server, JobExecutionInfoServer, AdminWebServer 分别对应rest server和 admin server, 而要启动这两个server需要有相应的配置job.execinfo.server.enabled和admin.server.enabled，默认都是关闭的.</p>
+
+<ul>
+<li>admin.server.enabled=true</li>
+<li>admin.server.port=17878</li>
+<li>job.execinfo.server.enabled=true</li>
+<li>rest.server.host=data4</li>
+<li>rest.server.host=18080</li>
+</ul>
+
+<p>Gobblin的Rest Server是基于linkin的Rest.li开发的, 所以url还是有点奇怪的:</p>
+
+<ul>
+<li>http://<a href="hostname:port">hostname:port</a>/jobExecutions/idType=JOB_NAME&amp;id.string=TestJobName&amp;limit=10</li>
+</ul>
+
+<p>最后说明下, admin server的js库和css库有部分是被墙的, 所以web生成速度很慢, 需要把这些js库下载下来添加到本地。</p>
+
+<h3 id="toc_4">client</h3>
+
+<p>同样我们可以通过gobblin-admin.sh 来查看job信息:</p>
+
+<pre><code class="language-bash">[bmw@data4 bin]$ sh gobblin-admin.sh --logdir ./ help
+gobblin-admin.sh [JAVA_OPTION] COMMAND [OPTION]
+Where JAVA_OPTION can be:
+  --fwdir &lt;fwd dir&gt;                              Gobblin&#39;s dist directory: if not set, taken from ${GOBBLIN_FWDIR}
+  --logdir &lt;log dir&gt;                             Gobblin&#39;s log directory: if not set, taken from ${GOBBLIN_LOG_DIR}
+  --jars &lt;comma-separated list of job jars&gt;      Job jar(s): if not set, ${GOBBLIN_FWDIR/lib} is examined
+  --help                                         Display this help and exit
+COMMAND is one of the following:
+  jobs|tasks
+And OPTION are any options associated with the command, as specified by the CLI.
+[bmw@data4 bin]$ sh gobblin-admin.sh --logdir ./ jobs -list
+Job Name                State      Last Run Started     Last Run Completed   Schedule        Last Run Records Processed  Last Run Records Failed
+Dev2KafkaHDFSAVRO_test  COMMITTED  2016-03-18T17:30:00  2016-03-18T17:30:04  0 */15 * * * ?          21157.249109155135                      0.0
+</code></pre>
+
+<h2 id="toc_5">总结</h2>
+
+<p>最后展示下效果web的效果吧:</p>
+
+<h3 id="toc_6">展示所有的job(相同的job只显示一个)</h3>
+
+<p><img src="media/15155064360093/gobblin-web-1.png" alt="gobblin-web-1"/></p>
+
+<h3 id="toc_7">展示job的所有历史记录</h3>
+
+<p><img src="media/15155064360093/gobblin-web-2.png" alt="gobblin-web-2"/></p>
+
+<h3 id="toc_8">展示某个job实例的detail信息, 可查看task, properties[View Job Properties]和metrix[View Metrics]</h3>
+
+<p><img src="media/15155064360093/gobblin-web-3.png" alt="gobblin-web-3"/></p>
+
+<p>本文主要介绍了如何配置实现gobblin的web监控以及history store。总体来说, 这个监控做的还是不错的。<br/>
+下一篇将简要介绍gobblin-runtime。</p>
+
+<p>本文完</p>
+
+<ul>
+<li>原创文章，转载请注明： 转载自<a href="http://lamborryan.github.io">Lamborryan</a>，作者：<a href="http://lamborryan.github.io/about/">Ruan Chengfeng</a></li>
+<li>本文链接地址：<a href="http://lamborryan.github.io/gobblin-state">http://lamborryan.github.io/gobblin-state</a></li>
+<li>本文基于<a href="http://creativecommons.org/licenses/by/2.5/cn/">署名2.5中国大陆许可协议</a>发布，欢迎转载、演绎或用于商业目的，但是必须保留本文署名和文章链接。 如您有任何疑问或者授权方面的协商，请邮件联系我。</li>
+</ul>
+
+			</div>
+
+		
+	  
+		<footer>
+		 <p class="meta">
+
+			<strong>Categories:</strong>&nbsp; 
+			<span class="categories">
+			
+			    <a class='category' href='Gobblin.html'>Gobblin</a>&nbsp;
+			 
+			</span>
+		    </p>
+		    <p class="meta">
+		      
+		 </p>
+	    
+		<div class="sharing">
+		  
+          
+
+          
+
+		</div>
+
+	    <p class="meta">
+	    
+	        <a class="basic-alignment left" href="15155065803565.html" 
+	        title="Previous Post: Gobblin系列(3)之Azkaban Schedule">&laquo; Gobblin系列(3)之Azkaban Schedule</a>
+	    
+	    
+	        <a class="basic-alignment right" href="15155061559657.html" 
+	        title="Next Post: Gobblin系列(1)一之初探">Gobblin系列(1)一之初探 &raquo;</a>
+	    
+	    </p>
+	  </footer>
+	</article>
+</div>
+ <aside class="sidebar"> 
+
+	<section>
+	  <h1>Categories</h1>
+	  <ul id="recent_posts">
+	  
+	      <li class="post">
+	        <a href="%E6%95%B0%E4%BB%93%E5%BB%BA%E6%A8%A1.html"><strong>数仓建模&nbsp;(5)</strong></a>
+	         <p class="cat-children-p"> 
+	        
+	        	<a href="StarSchema%E7%AC%94%E8%AE%B0.html">StarSchema笔记&nbsp;(4)</a>&nbsp;&nbsp;
+	        
+	        	<a href="Data%20Vault.html">Data Vault&nbsp;(1)</a>&nbsp;&nbsp;
+	        
+	         </p> 
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%BC%80%E6%BA%90%E6%8A%80%E6%9C%AF.html"><strong>开源技术&nbsp;(10)</strong></a>
+	         <p class="cat-children-p"> 
+	        
+	        	<a href="Apache%20Calcite.html">Apache Calcite&nbsp;(1)</a>&nbsp;&nbsp;
+	        
+	        	<a href="Gobblin.html">Gobblin&nbsp;(8)</a>&nbsp;&nbsp;
+	        
+	        	<a href="Solr.html">Solr&nbsp;(1)</a>&nbsp;&nbsp;
+	        
+	         </p> 
+	      </li>
+	   
+	  </ul>
+	</section>
+	<section>
+	  <h1>Recent Posts</h1>
+	  <ul id="recent_posts">
+	  
+	      
+		      <li class="post">
+		        <a href="15155074940397.html">Solr4.8.0源码分析汇总</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="15155073098227.html">Gobblin系列(8)之Extractor源码分析</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="15155071664887.html">Gobblin系列(7)之Source源码分析</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="15155068855798.html">Gobblin系列(6)之State</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="15155067914960.html">Gobblin系列(5)之Writer源码分析</a>
+		      </li>
+	     
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	   
+	  </ul>
+	</section>
+	
+</aside> </div></div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2014 -  -
+  <span class="credit">Powered by <a target="_blank" href="http://www.mweb.im">MWeb</a> &nbsp;&nbsp; Theme by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+
+  
+    
+
+
+
+
+</body>
+</html>

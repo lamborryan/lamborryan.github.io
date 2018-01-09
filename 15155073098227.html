@@ -1,0 +1,367 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>
+    
+  Gobblin系列(8)之Extractor源码分析 - 追风的蓝宝
+  
+
+  </title>
+  <meta name="author" content="">
+  <meta name="description" content="爱好大数据与开源技术">
+
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <link href="asset/css/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="atom.xml" rel="alternate" title="追风的蓝宝" type="application/atom+xml">
+  <script src="asset/js/modernizr-2.0.js"></script>
+  <script src="asset/js/jquery.min.js"></script>
+  <script src="asset/highlightjs/highlight.pack.js"></script>
+  <link href="asset/highlightjs/styles/solarized_light.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script>hljs.initHighlightingOnLoad();</script>
+
+  <style type="text/css">
+  .cat-children-p{ padding: 6px 0px;}
+  .hljs{background: none;}
+  </style>
+  <script type="text/javascript">
+  var isAddSildbar = true;
+  </script>
+  <script src="asset/js/octopress.js" type="text/javascript"></script>
+</head>
+<script type="text/javascript">
+//链接新开窗口
+function addBlankTargetForLinks () {
+  $('a[href^="http"]').each(function(){
+      $(this).attr('target', '_blank');
+  });
+}
+$(document).ready(function(event) {
+  addBlankTargetForLinks();
+});
+</script>
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="index.html">追风的蓝宝</a></h1>
+  
+    <h2>爱好大数据与开源技术</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:www.lamborryan.com" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+
+  <li id=""><a target="_self" href="index.html">Home</a></li>
+
+  <li id=""><a target="_self" href="archives.html">Archives</a></li>
+
+  <li id=""><a target="_self" href="about.html">About</a></li>
+
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content"> 
+<div>
+	<article class="hentry" role="article">
+	<header>
+			  	<h1 class="entry-title">Gobblin系列(8)之Extractor源码分析</h1>
+				<p class="meta"><time datetime="2018-01-09T22:15:09+08:00" pubdate data-updated="true">2018/1/9</time></p>
+			 </header>
+		  	<div class="entry-content">
+			  	<ul>
+<li>
+<a href="#toc_0">一. 简介</a>
+</li>
+<li>
+<a href="#toc_1">二. MysqlExtractor的类继承关系。</a>
+</li>
+<li>
+<a href="#toc_2">三. Extractor接口</a>
+</li>
+<li>
+<a href="#toc_3">四: QueryBasedExtractor</a>
+</li>
+<li>
+<a href="#toc_4">五: JdbcExtractor 和 MysqlExtractor</a>
+</li>
+<li>
+<a href="#toc_5">六: 总结</a>
+<ul>
+<li>
+<a href="#toc_6">本文完</a>
+</li>
+</ul>
+</li>
+</ul>
+
+
+<h2 id="toc_0">一. 简介</h2>
+
+<p>Extractor相比Source来说就简单多了, 因为Source不但要考虑当前job的WorkUnits, 还要考虑前一个Job的WorkUnits. 相比之下Extractor的服务对象就单个WorkUnits, 要实现的功能也无非就是根据low water mark和high water mark从数据源那里获取数据。</p>
+
+<p>因此本文主要介绍Extractor如何实现上述描述的功能。目前Gobblin支持且常用的Extractor有MysqlExtractor, KafkaSimpleSource等等, 本文依然以MysqlExtractor为例来介绍Extractor。</p>
+
+<!--more-->
+
+<h2 id="toc_1">二. MysqlExtractor的类继承关系。</h2>
+
+<p><img src="media/15155073098227/gobblin-extractor-1.png" alt="gobblin-extractor-1"/></p>
+
+<p>由此可见, 要实现MysqlExtractor不但需要继承Extractor, 也要继承实现该数据源有关的SpecificLayer接口。</p>
+
+<h2 id="toc_2">三. Extractor接口</h2>
+
+<p>现在让我们来看下Extractor接口实现了哪些功能:</p>
+
+<ul>
+<li>获取record的数据结构</li>
+<li>读取record</li>
+<li>获取record的个数</li>
+<li>获取可以获取到的high water mark</li>
+</ul>
+
+<pre><code class="language-java">public interface Extractor&lt;S, D&gt; extends Closeable {
+
+  public S getSchema() throws IOException;
+
+  public D readRecord(@Deprecated D reuse) throws DataRecordException, IOException;
+
+  public long getExpectedRecordCount();
+
+  @Deprecated
+  public long getHighWatermark();
+}
+</code></pre>
+
+<h2 id="toc_3">四: QueryBasedExtractor</h2>
+
+<p>实际上QueryBasedExtractor已经通过ProtocolSpecificLayer的接口实现了Extractor的接口功能。</p>
+
+<p>比如readRecord通过getIterator()来实现迭代器从而获取一条条record。其中getRecordSetFromSourceApi和getRecordSet就是ProtocolSpecificLayer的接口。如此后续要继承QueryBasedExtractor就必须实现ProtocolSpecificLayer的接口。</p>
+
+<p>getRecordSetFromSourceApi和getRecordSet是通过SOURCE_QUERYBASED_IS_SPECIFIC_API_ACTIVE这个配置项来选择的。</p>
+
+<pre><code class="language-java">/**
+ * Get iterator from protocol specific api if is.specific.api.active is false
+ * Get iterator from source specific api if is.specific.api.active is true
+ * @return iterator
+ */
+private Iterator&lt;D&gt; getIterator()
+    throws DataRecordException, IOException {
+  if (Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_IS_SPECIFIC_API_ACTIVE))) {
+    return this.getRecordSetFromSourceApi(this.schema, this.entity, this.workUnit, this.predicateList);
+  }
+  return this.getRecordSet(this.schema, this.entity, this.workUnit, this.predicateList);
+}
+</code></pre>
+
+<p>ProtocolSpecificLayer的接口主要是获取数据源的record schema，record数量, data type, 以及获取record等。</p>
+
+<pre><code class="language-java">public interface ProtocolSpecificLayer&lt;S, D&gt; {
+  public void extractMetadata(String schema, String entity, WorkUnit workUnit)
+      throws SchemaException, IOException;
+
+  public long getMaxWatermark(String schema, String entity, String watermarkColumn,
+      List&lt;Predicate&gt; snapshotPredicateList, String watermarkSourceFormat)
+      throws HighWatermarkException;
+
+  public long getSourceCount(String schema, String entity, WorkUnit workUnit, List&lt;Predicate&gt; predicateList)
+      throws RecordCountException;
+
+  public Iterator&lt;D&gt; getRecordSet(String schema, String entity, WorkUnit workUnit, List&lt;Predicate&gt; predicateList)
+      throws DataRecordException, IOException;
+
+  public String getWatermarkSourceFormat(WatermarkType watermarkType);
+  ...
+
+  public Map&lt;String, String&gt; getDataTypeMap();
+
+  public Iterator&lt;D&gt; getRecordSetFromSourceApi(String schema, String entity, WorkUnit workUnit,
+      List&lt;Predicate&gt; predicateList)
+      throws IOException;
+}
+</code></pre>
+
+<h2 id="toc_4">五: JdbcExtractor 和 MysqlExtractor</h2>
+
+<p>JdbcExtractor的情况跟QueryBasedExtractor类似, 它继承了QueryBasedExtractor,SourceSpecificLayer,JdbcSpecificLayer, 通过JdbcSpecificLayer和SourceSpecificLayer的接口来实现QueryBasedExtractor中未实现的接口。</p>
+
+<p>而且JdbcExtractor自动将jdbc的数据转换成了json格式。</p>
+
+<p>MysqlExtractor又最后实现了剩余的接口。</p>
+
+<h2 id="toc_5">六: 总结</h2>
+
+<p>由于代码比较多, 但逻辑比较简单，所以对Extractor的介绍就简单掠过了。</p>
+
+<h3 id="toc_6">本文完</h3>
+
+<ul>
+<li>原创文章，转载请注明： 转载自<a href="http://lamborryan.github.io">Lamborryan</a>，作者：<a href="http://lamborryan.github.io/about/">Ruan Chengfeng</a></li>
+<li>本文链接地址：<a href="http://lamborryan.github.io/gobblin-extractor">http://lamborryan.github.io/gobblin-extractor</a></li>
+<li>本文基于<a href="http://creativecommons.org/licenses/by/2.5/cn/">署名2.5中国大陆许可协议</a>发布，欢迎转载、演绎或用于商业目的，但是必须保留本文署名和文章链接。 如您有任何疑问或者授权方面的协商，请邮件联系我。</li>
+</ul>
+
+			</div>
+
+		
+	  
+		<footer>
+		 <p class="meta">
+
+			<strong>Categories:</strong>&nbsp; 
+			<span class="categories">
+			
+			    <a class='category' href='Gobblin.html'>Gobblin</a>&nbsp;
+			 
+			</span>
+		    </p>
+		    <p class="meta">
+		      
+		 </p>
+	    
+		<div class="sharing">
+		  
+          
+
+          
+
+		</div>
+
+	    <p class="meta">
+	    
+	        <a class="basic-alignment left" href="15155074940397.html" 
+	        title="Previous Post: Solr4.8.0源码分析汇总">&laquo; Solr4.8.0源码分析汇总</a>
+	    
+	    
+	        <a class="basic-alignment right" href="15155071664887.html" 
+	        title="Next Post: Gobblin系列(7)之Source源码分析">Gobblin系列(7)之Source源码分析 &raquo;</a>
+	    
+	    </p>
+	  </footer>
+	</article>
+</div>
+ <aside class="sidebar"> 
+
+	<section>
+	  <h1>Categories</h1>
+	  <ul id="recent_posts">
+	  
+	      <li class="post">
+	        <a href="%E6%95%B0%E4%BB%93%E5%BB%BA%E6%A8%A1.html"><strong>数仓建模&nbsp;(5)</strong></a>
+	         <p class="cat-children-p"> 
+	        
+	        	<a href="StarSchema%E7%AC%94%E8%AE%B0.html">StarSchema笔记&nbsp;(4)</a>&nbsp;&nbsp;
+	        
+	        	<a href="Data%20Vault.html">Data Vault&nbsp;(1)</a>&nbsp;&nbsp;
+	        
+	         </p> 
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%BC%80%E6%BA%90%E6%8A%80%E6%9C%AF.html"><strong>开源技术&nbsp;(10)</strong></a>
+	         <p class="cat-children-p"> 
+	        
+	        	<a href="Apache%20Calcite.html">Apache Calcite&nbsp;(1)</a>&nbsp;&nbsp;
+	        
+	        	<a href="Gobblin.html">Gobblin&nbsp;(8)</a>&nbsp;&nbsp;
+	        
+	        	<a href="Solr.html">Solr&nbsp;(1)</a>&nbsp;&nbsp;
+	        
+	         </p> 
+	      </li>
+	   
+	  </ul>
+	</section>
+	<section>
+	  <h1>Recent Posts</h1>
+	  <ul id="recent_posts">
+	  
+	      
+		      <li class="post">
+		        <a href="15155074940397.html">Solr4.8.0源码分析汇总</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="15155073098227.html">Gobblin系列(8)之Extractor源码分析</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="15155071664887.html">Gobblin系列(7)之Source源码分析</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="15155068855798.html">Gobblin系列(6)之State</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="15155067914960.html">Gobblin系列(5)之Writer源码分析</a>
+		      </li>
+	     
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	   
+	  </ul>
+	</section>
+	
+</aside> </div></div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2014 -  -
+  <span class="credit">Powered by <a target="_blank" href="http://www.mweb.im">MWeb</a> &nbsp;&nbsp; Theme by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+
+  
+    
+
+
+
+
+</body>
+</html>

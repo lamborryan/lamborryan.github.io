@@ -1,0 +1,707 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>
+    
+  Gobblin系列(7)之Source源码分析 - 追风的蓝宝
+  
+
+  </title>
+  <meta name="author" content="">
+  <meta name="description" content="爱好大数据与开源技术">
+
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <link href="asset/css/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="atom.xml" rel="alternate" title="追风的蓝宝" type="application/atom+xml">
+  <script src="asset/js/modernizr-2.0.js"></script>
+  <script src="asset/js/jquery.min.js"></script>
+  <script src="asset/highlightjs/highlight.pack.js"></script>
+  <link href="asset/highlightjs/styles/solarized_light.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script>hljs.initHighlightingOnLoad();</script>
+
+  <style type="text/css">
+  .cat-children-p{ padding: 6px 0px;}
+  .hljs{background: none;}
+  </style>
+  <script type="text/javascript">
+  var isAddSildbar = true;
+  </script>
+  <script src="asset/js/octopress.js" type="text/javascript"></script>
+</head>
+<script type="text/javascript">
+//链接新开窗口
+function addBlankTargetForLinks () {
+  $('a[href^="http"]').each(function(){
+      $(this).attr('target', '_blank');
+  });
+}
+$(document).ready(function(event) {
+  addBlankTargetForLinks();
+});
+</script>
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="index.html">追风的蓝宝</a></h1>
+  
+    <h2>爱好大数据与开源技术</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:www.lamborryan.com" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+
+  <li id=""><a target="_self" href="index.html">Home</a></li>
+
+  <li id=""><a target="_self" href="archives.html">Archives</a></li>
+
+  <li id=""><a target="_self" href="about.html">About</a></li>
+
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content"> 
+<div>
+	<article class="hentry" role="article">
+	<header>
+			  	<h1 class="entry-title">Gobblin系列(7)之Source源码分析</h1>
+				<p class="meta"><time datetime="2018-01-09T22:12:46+08:00" pubdate data-updated="true">2018/1/9</time></p>
+			 </header>
+		  	<div class="entry-content">
+			  	<ul>
+<li>
+<a href="#toc_0">一.简介</a>
+</li>
+<li>
+<a href="#toc_1">三.AbstractSource</a>
+</li>
+<li>
+<a href="#toc_2">四.QueryBasedSource</a>
+<ul>
+<li>
+<a href="#toc_3">4.1. getLatestWatermarkFromMetadata</a>
+</li>
+<li>
+<a href="#toc_4">4.2. Partitioner</a>
+</li>
+<li>
+<a href="#toc_5">4.3. 总结</a>
+</li>
+</ul>
+</li>
+<li>
+<a href="#toc_6">五.MysqlSource</a>
+</li>
+<li>
+<a href="#toc_7">总结</a>
+</li>
+<li>
+<a href="#toc_8">本文完</a>
+</li>
+</ul>
+
+
+<h2 id="toc_0">一.简介</h2>
+
+<p>Source在整个Gobblin任务流中负责以下三点:</p>
+
+<ol>
+<li>对数据源进行预切分获取<code>WorkUnits</code>。所谓预切分即是在不知道数据源是啥样的前提下, 划分好数据。</li>
+<li>为每一个<code>task</code>生成一个<code>extractor</code>, 一般情况下一个<code>task</code>对应一个<code>WorkUnit</code>(当然也存在多对多的情况), 从而实现对数据的摄取。</li>
+<li>提供<code>shutdown</code>处理机制, 即在job完成时候gobblin会回调<code>shutdown</code>函数, 我们可以在这里进行相应的逻辑处理。</li>
+</ol>
+
+<p>这些功能都是通过Source接口实现的。</p>
+
+<!--more-->
+
+<pre><code class="language-java">/*
+ * An interface for classes that the end users implement to work with a data source from which
+ * schema and data records can be extracted.
+ * An implementation of this interface should contain all the logic required to work with a specific data source. This usually includes work determination and partitioning, and details of the connection protocol to work with the data source.
+ */
+public interface Source&lt;S, D&gt; {
+
+  /**
+   * Get a list of WorkUnits, each of which is for extracting a portion of the data.
+
+   * Each WorkUnit will be used instantiate a WorkUnitState that gets passed to the
+   * getExtractor(WorkUnitState) method to get an Extractor for extracting schema and data records
+   * from the source. The WorkUnit instance should have all the properties needed for the Extractor
+   * to work.
+
+   * Typically the list of WorkUnits for the current run is determined by taking into account the
+   * list of WorkUnits from the previous run so data gets extracted incrementally. The method  
+   * SourceState.getPreviousWorkUnitStates can be used to get the list of WorkUnits from the
+   * previous run.
+   */
+  public abstract List&lt;WorkUnit&gt; getWorkunits(SourceState state);
+
+  /**
+   * Get an Extractor based on a given WorkUnitState.
+
+   * The Extractor returned can use WorkUnitState to store arbitrary key-value pairs that will be
+   * persisted to the state store and loaded in the next scheduled job run.
+   */
+  public abstract Extractor&lt;S, D&gt; getExtractor(WorkUnitState state)
+      throws IOException;
+
+  /**
+   * This method is called once when the job completes. Properties (key-value pairs) added to the
+   * input SourceState instance will be persisted and available to the next scheduled job run
+   * through the method getWorkunits(SourceState). If there is no cleanup or reporting required for
+   * a particular implementation of this interface, then it is acceptable to have a default
+   * implementation of this method.
+   */
+  public abstract void shutdown(SourceState state);
+}
+</code></pre>
+
+<p>所有的数据源都是基于Source接口实现的, 通过继承并实现这三个方法我们就可以实现自己的Source了。</p>
+
+<p>下图是 gobblin-0.6.2自带的Source的子类。</p>
+
+<p><img src="media/15155071664887/gobblin-source-1.png" alt="gobblin-source-1"/></p>
+
+<p>其中</p>
+
+<ol>
+<li><code>SimpleJsonSource</code>和<code>WikipediaSource</code>都是自带的Source example</li>
+<li><code>SourceDecorator</code>是Source的适配器, Gobblin-Runtime对source的调用都是通过<code>SourceDecorator</code>实现的。</li>
+<li>复杂点的Source都是从<code>AbstractSource</code>, <code>AbstractSource</code>有啥作用, 它加入了对上一个job的<code>WorkUnits</code>处理, 如果上一个job周期内有<code>WorkUnits</code>处理失败了，这些<code>WorkUnits</code>就会加入到本次<code>WorkUnits</code>中，具体过程待我下节慢慢讲来。</li>
+</ol>
+
+<p>目前使用较多的数据源主要是<code>MysqlSource</code>和<code>KafkaSimpleSource</code>。</p>
+
+<p>本文主要以<code>AbstractSource</code>-&gt;<code>QueryBasedSource</code>－&gt;<code>MysqlSource</code>这一继承关系为例来介绍Gobblin是如何实现Source的。由于关于<code>Extractor</code>将会在下篇文章中单独介绍, 因此本文主要介绍Source的<code>getWorkunits()</code>。</p>
+
+<h2 id="toc_1">三.AbstractSource</h2>
+
+<p>Gobblin在获取WorkUnits时候不但会根据water marks来切分当前job的WorkUnits, 而且也会根据SourceState中获取上一个job的运行状态并根据策略配置选择是否要把上一个job的WorkUnits也加进去。(关于SourceState的介绍请看<a href="http://lamborryan.github.io/gobblin-state/">《Gobblin系列六之State》</a>)</p>
+
+<p>因此AbstractSource就是在Source的基础上增加了获取上次job中需要在本次job重新运行的WorkUnits的方法。</p>
+
+<blockquote>
+<p>We use two keys for configuring work unit retries. The first one specifies whether work unit retries are enabled or not. This is for individual jobs or a group of jobs that following the same rule for work unit retries. The second one that is more advanced is for specifying a retry policy. This one is particularly useful for being a global policy for a group of jobs that have different job commit policies and want work unit retries only for a specific job commit policy. The first one probably is sufficient for most jobs that only need a way to enable/disable work unit retries. The second one gives users more flexibilities.</p>
+</blockquote>
+
+<p>关于WorkUnitRetryPolicy策略有以下几种:</p>
+
+<ul>
+<li><code>WorkUnitRetryPolicy.ALWAYS</code>: 总会对失败或者异常的work units进行retry, 不管采用了何种提交策略。</li>
+<li><code>WorkUnitRetryPolicy.ONPARTIAL</code>: 只有当提交策略是COMMIT_ON_PARTIAL_SUCCESS时候才会失败或者异常的work units进行retry.
+该选项往往用在对具有不同提交策略的job group上,做为全局的Retry策略。</li>
+<li><code>WorkUnitRetryPolicy.ONFULL</code>: 只有当提交策略是COMMIT_ON_FULL_SUCCESS时候才会失败或者异常的work units进行retry.
+该选项往往用在对具有不同提交策略的job group上,做为全局的Retry策略。</li>
+<li><code>WorkUnitRetryPolicy.NEVER</code>: 从不对失败或者异常的work units进行retry.</li>
+</ul>
+
+<pre><code class="language-java">protected List&lt;WorkUnitState&gt; getPreviousWorkUnitStatesForRetry(SourceState state) {
+  * * *
+  // 获取retry策略
+  WorkUnitRetryPolicy workUnitRetryPolicy;
+  if (state.contains(ConfigurationKeys.WORK_UNIT_RETRY_POLICY_KEY)) {
+    // Use the given work unit retry policy if specified
+    workUnitRetryPolicy = WorkUnitRetryPolicy.forName(state.getProp(ConfigurationKeys.WORK_UNIT_RETRY_POLICY_KEY));
+  } else {
+    // 根据WORK_UNIT_RETRY_ENABLED_KEY这个配置来决定是否打开WorkUnitRetryPolicy策略
+    boolean retryFailedWorkUnits = state.getPropAsBoolean(ConfigurationKeys.WORK_UNIT_RETRY_ENABLED_KEY, true);
+    workUnitRetryPolicy = retryFailedWorkUnits ? WorkUnitRetryPolicy.ALWAYS : WorkUnitRetryPolicy.NEVER;
+  }
+
+  // 如果是never策略则返回空的workunit
+  if (workUnitRetryPolicy == WorkUnitRetryPolicy.NEVER) {
+    return ImmutableList.of();
+  }
+
+  List&lt;WorkUnitState&gt; previousWorkUnitStates = Lists.newArrayList();
+  // 获取上一个job的没有成功的workunit。
+  for (WorkUnitState workUnitState : state.getPreviousWorkUnitStates()) {
+    if (workUnitState.getWorkingState() != WorkUnitState.WorkingState.COMMITTED) {
+      if (state.getPropAsBoolean(ConfigurationKeys.OVERWRITE_CONFIGS_IN_STATESTORE,
+          ConfigurationKeys.DEFAULT_OVERWRITE_CONFIGS_IN_STATESTORE)) {
+        // We need to make a copy here since getPreviousWorkUnitStates returns ImmutableWorkUnitStates
+        // for which addAll is not supported
+        WorkUnitState workUnitStateCopy = new WorkUnitState(workUnitState.getWorkunit());
+        workUnitStateCopy.addAll(workUnitState);
+        workUnitStateCopy.overrideWith(state);
+        previousWorkUnitStates.add(workUnitStateCopy);
+      } else {
+        previousWorkUnitStates.add(workUnitState);
+      }
+    }
+  }
+
+  // 如果是always策略, 则直接返回上一个job所有失败的workunits
+  if (workUnitRetryPolicy == WorkUnitRetryPolicy.ALWAYS) {
+    return previousWorkUnitStates;
+  }
+
+  // 获取提交策略，默认是全部提交。
+  JobCommitPolicy jobCommitPolicy = JobCommitPolicy
+      .forName(state.getProp(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, ConfigurationKeys.DEFAULT_JOB_COMMIT_POLICY));
+
+  // 根据提交策略和retry策略来决定是否需要retry上一个job失败的workunits
+  if ((workUnitRetryPolicy == WorkUnitRetryPolicy.ON_COMMIT_ON_PARTIAL_SUCCESS
+      &amp;&amp; jobCommitPolicy == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS)
+      || (workUnitRetryPolicy == WorkUnitRetryPolicy.ON_COMMIT_ON_FULL_SUCCESS
+          &amp;&amp; jobCommitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS)) {
+    return previousWorkUnitStates;
+  } else {
+    // Return an empty list if job commit policy and work unit retry policy do not match
+    return ImmutableList.of();
+  }
+}
+</code></pre>
+
+<p>由代码可以看出, 对于上一个失败的workunits, 要么全部retry, 要么都不retry, 在颗粒度比较粗。</p>
+
+<p>同时AbstractSource还会生成Extract State. 相同的namespace和table具有相同的Extract。比如kafka sourc, 虽然只是一次job, 但是有可能因为存在多个topic从而产生了不同的Extract, 即每一个top的Extract id不同。而Extract不同的一个好处是可以使用不同的发布策略。</p>
+
+<pre><code class="language-java">public Extract createExtract(TableType type, String namespace, String table) {
+    return this.extractFactory.getUniqueExtract(type, namespace, table);
+}
+</code></pre>
+
+<h2 id="toc_2">四.QueryBasedSource</h2>
+
+<p>QueryBasedSource在AbstractSource基础上又实现了query－based的getWorkunits， 已经具有很鲜明的sql特点了。<br/>
+本小节主要介绍QueryBasedSource如何通过getWorkunits来获取WorkUnits.</p>
+
+<p>QueryBasedSource的getWorkunits需要解决以下几个问题:</p>
+
+<ul>
+<li>怎么获取上一个job的Latest Water mark, 从而可以做为本次job的low Water mark</li>
+<li>怎么进行partition</li>
+</ul>
+
+<p>因此分为两小节来分别介绍。</p>
+
+<h3 id="toc_3">4.1. getLatestWatermarkFromMetadata</h3>
+
+<ul>
+<li>如果commit policy是full且有task失败了, 则Latest Water mark是所有WorkUnits中最小的low water mark。</li>
+<li>如果commit policy是full且所有task成功, 则Latest Water mark是所有WorkUnits中最大的high water mark。</li>
+<li>如果commit policy不是full且有task成功, 则Latest Water mark是所有成功的WorkUnits中最大的high water mark。失败的task由retry policy控制。</li>
+<li>如果commit policy不是full且所有task都失败, 则Latest Water mark是所有WorkUnits中最小的low water mark。</li>
+</ul>
+
+<blockquote>
+<p>这里我有疑惑: 如果设置了retry policy = JobCommitPolicy.COMMIT_ON_FULL_SUCCESS, retry policy会把上一个job的failed workunit加入到新job的workunits。 而getLatestWatermarkFromMetadata又会计算上一个job的最小的watermark，从而再次计算这些workunit。使得上一job的workunits重新跑两次。</p>
+</blockquote>
+
+<pre><code class="language-java">private long getLatestWatermarkFromMetadata(SourceState state) {
+   ...
+   boolean hasFailedRun = false;
+   boolean isCommitOnFullSuccess = false;
+   boolean isDataProcessedInPreviousRun = false;
+
+   JobCommitPolicy commitPolicy = JobCommitPolicy
+       .forName(state.getProp(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, ConfigurationKeys.DEFAULT_JOB_COMMIT_POLICY));
+   if (commitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS) {
+     isCommitOnFullSuccess = true;
+   }
+
+   for (WorkUnitState workUnitState : previousWorkUnitStates) {
+     long processedRecordCount = 0;
+     if (workUnitState.getWorkingState() == WorkingState.FAILED
+         || workUnitState.getWorkingState() == WorkingState.CANCELLED
+         || workUnitState.getWorkingState() == WorkingState.RUNNING
+         || workUnitState.getWorkingState() == WorkingState.PENDING) {
+       hasFailedRun = true;
+     } else {
+       processedRecordCount = workUnitState.getPropAsLong(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED);
+       if (processedRecordCount != 0) {
+         isDataProcessedInPreviousRun = true;
+       }
+     }
+
+     // Consider high water mark of the previous work unit, if it is
+     // extracted any data
+     if (processedRecordCount != 0) {
+       previousWorkUnitStateHighWatermarks.add(workUnitState.getHighWaterMark());
+     }
+
+     previousWorkUnitLowWatermarks.add(this.getLowWatermarkFromWorkUnit(workUnitState));
+   }
+
+   // If commit policy is full and it has failed run, get latest water mark
+   // as
+   // minimum of low water marks from previous states.
+   if (isCommitOnFullSuccess &amp;&amp; hasFailedRun) {
+     long previousLowWatermark = Collections.min(previousWorkUnitLowWatermarks);
+
+     WorkUnitState previousState = previousWorkUnitStates.get(0);
+     ExtractType extractType =
+         ExtractType.valueOf(previousState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_EXTRACT_TYPE).toUpperCase());
+
+     // add backup seconds only for snapshot extracts but not for appends
+     if (extractType == ExtractType.SNAPSHOT) {
+       int backupSecs = previousState.getPropAsInt(ConfigurationKeys.SOURCE_QUERYBASED_LOW_WATERMARK_BACKUP_SECS, 0);
+       String watermarkType = previousState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE);
+       latestWaterMark = this.addBackedUpSeconds(previousLowWatermark, backupSecs, watermarkType);
+     } else {
+       latestWaterMark = previousLowWatermark;
+     }
+   }
+
+   // If commit policy is full and there are no failed tasks or commit
+   // policy is partial,
+   // get latest water mark as maximum of high water marks from previous
+   // tasks.
+   else {
+     if (isDataProcessedInPreviousRun) {
+       latestWaterMark = Collections.max(previousWorkUnitStateHighWatermarks);
+     } else {
+       latestWaterMark = Collections.min(previousWorkUnitLowWatermarks);
+     }
+   }
+
+   return latestWaterMark;
+ }
+</code></pre>
+
+<h3 id="toc_4">4.2. Partitioner</h3>
+
+<p>Partitioner 的作用就是根据latestWaterMark来对数据进行partition, 并得到WorkUnits. Partition过程涉及到以下几个变量:</p>
+
+<ul>
+<li>interval, partition时候的最小单位, 由source.querybased.partition.interval获取。</li>
+<li>maxPartitions, partition的最大个数, 由配置source.max.number.of.partitions获取。</li>
+<li>lowWatermark, 根据previousWatermark(latestWaterMark)获取partition的左边界。</li>
+<li>highWatermark, 计算partition的右边界。</li>
+<li>source.querybased.watermark.type决定了是以哪种类型进行partition。</li>
+</ul>
+
+<p>如果lowWatermark或者highWatermark等于DEFAULT_WATERMARK_VALUE, 则只会形成一个partition。</p>
+
+<pre><code class="language-java">public HashMap&lt;Long, Long&gt; getPartitions(long previousWatermark) {
+   HashMap&lt;Long, Long&gt; defaultPartition = new HashMap&lt;Long, Long&gt;();
+   ...
+   // extract type 比如snapshot等
+   ExtractType extractType =
+       ExtractType.valueOf(this.state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_EXTRACT_TYPE).toUpperCase());
+    // watermarkType 类型 比如 timestamp date hour simple
+   WatermarkType watermarkType =
+       WatermarkType.valueOf(this.state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE,
+           ConfigurationKeys.DEFAULT_WATERMARK_TYPE).toUpperCase());
+   // 分区步长,最小单位
+   int interval =
+       this.getUpdatedInterval(this.state.getPropAsInt(ConfigurationKeys.SOURCE_QUERYBASED_PARTITION_INTERVAL, 0),
+           extractType, watermarkType);
+   int sourceMaxAllowedPartitions = this.state.getPropAsInt(ConfigurationKeys.SOURCE_MAX_NUMBER_OF_PARTITIONS, 0);
+   // 最大可以分区的个数
+   int maxPartitions =
+       (sourceMaxAllowedPartitions != 0 ? sourceMaxAllowedPartitions
+           : ConfigurationKeys.DEFAULT_MAX_NUMBER_OF_PARTITIONS);
+
+   WatermarkPredicate watermark = new WatermarkPredicate(null, watermarkType);
+   int deltaForNextWatermark = watermark.getDeltaNumForNextWatermark();
+
+   // 可以分区的最小watermark
+   long lowWatermark = this.getLowWatermark(extractType, watermarkType, previousWatermark, deltaForNextWatermark);
+   // 可以分区的最大watermark
+   long highWatermark = this.getHighWatermark(extractType, watermarkType);
+   // 如果最小watermark或者最大watermark为－1, 则只有一个分区
+   if (lowWatermark == ConfigurationKeys.DEFAULT_WATERMARK_VALUE
+       || highWatermark == ConfigurationKeys.DEFAULT_WATERMARK_VALUE) {
+     defaultPartition.put(lowWatermark, highWatermark);
+     return defaultPartition;
+   }
+   // 根据相应的watertype进行分区, 实际上调用的是watermark的getIntervals
+   return watermark.getPartitions(lowWatermark, highWatermark, interval, maxPartitions);
+ }
+
+</code></pre>
+
+<p>这里要介绍下source.querybased.watermark.type这个配置, 它决定了是以哪种类型来进行partition。默认支持TIMESTAMP, DATE, HOUR, SIMPLE. 所谓的SIMPLE, 其实就是整数, Gobblin会根据这个type来决定哪种watermark。</p>
+
+<pre><code class="language-java">public WatermarkPredicate(String watermarkColumn, WatermarkType watermarkType) {
+    super();
+    this.watermarkColumn = watermarkColumn;
+    this.watermarkType = watermarkType;
+
+    switch (watermarkType) {
+    case TIMESTAMP:
+      this.watermark = new TimestampWatermark(watermarkColumn, DEFAULT_WATERMARK_VALUE_FORMAT);
+      break;
+    case DATE:
+      this.watermark = new DateWatermark(watermarkColumn, DEFAULT_WATERMARK_VALUE_FORMAT);
+      break;
+    case HOUR:
+      this.watermark = new HourWatermark(watermarkColumn, DEFAULT_WATERMARK_VALUE_FORMAT);
+      break;
+    case SIMPLE:
+      this.watermark = new SimpleWatermark(watermarkColumn, DEFAULT_WATERMARK_VALUE_FORMAT);
+      break;
+    default:
+      this.watermark = new SimpleWatermark(watermarkColumn, DEFAULT_WATERMARK_VALUE_FORMAT);
+      break;
+    }
+}
+</code></pre>
+
+<p>假设我们选择了TIMESTAMP, 则gobblin会实例化TimestampWatermark来进行partition。</p>
+
+<pre><code class="language-java">synchronized public HashMap&lt;Long, Long&gt; getIntervals(long lowWatermarkValue, long highWatermarkValue, long partitionInterval, int maxIntervals) {
+    ...
+    HashMap&lt;Long, Long&gt; intervalMap = new HashMap&lt;Long, Long&gt;();
+    Date startTime = new Date(lowWatermark);
+    Date endTime = new Date(highWatermark);
+    LOG.debug(&quot;Sart time:&quot; + startTime + &quot;; End time:&quot; + endTime);
+    long lwm;
+    long hwm;
+    while (startTime.getTime() &lt;= endTime.getTime()) {
+      lwm = Long.parseLong(INPUTFORMATPARSER.format(startTime));
+      calendar.setTime(startTime);
+      calendar.add(Calendar.HOUR, (int) interval);
+      nextTime = calendar.getTime();
+      hwm = Long.parseLong(INPUTFORMATPARSER.format(nextTime.getTime() &lt;= endTime.getTime() ? nextTime : endTime));
+      intervalMap.put(lwm, hwm);
+      LOG.debug(&quot;Partition - low:&quot; + lwm + &quot;; high:&quot; + hwm);
+      calendar.add(Calendar.SECOND, deltaForNextWatermark);
+      startTime = calendar.getTime();
+    }
+
+    return intervalMap;
+}
+
+</code></pre>
+
+<p>需要说明一点就是, 如果watertype是timestamp,date,hour的highwatermark是当前时间, 如果是simple且snapshot的话, highwatermark是－1, 也就是说如果是simple的话只会有一个partition。</p>
+
+<h3 id="toc_5">4.3. 总结</h3>
+
+<p>最后回顾下getWorkunits的过程</p>
+
+<pre><code class="language-java">public List&lt;WorkUnit&gt; getWorkunits(SourceState state) {
+    ...
+    // 获取上一个job的latest watermark
+    long previousWatermark = this.getLatestWatermarkFromMetadata(state);
+
+    // 根据latest watermark进行partition,并作排序
+    Map&lt;Long, Long&gt; sortedPartitions = Maps.newTreeMap();
+    sortedPartitions.putAll(new Partitioner(state).getPartitions(previousWatermark));
+
+    // Use extract table name to create extract
+    SourceState partitionState = new SourceState();
+    partitionState.addAll(state);
+    Extract extract = partitionState.createExtract(tableType, nameSpaceName, extractTableName);
+
+    // Setting current time for the full extract
+    if (Boolean.valueOf(state.getProp(ConfigurationKeys.EXTRACT_IS_FULL_KEY))) {
+      extract.setFullTrue(System.currentTimeMillis());
+    }
+
+    // 将各paritions的watermark写入到workunits
+    for (Entry&lt;Long, Long&gt; entry : sortedPartitions.entrySet()) {
+      partitionState.setProp(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY, entry.getKey());
+      partitionState.setProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY, entry.getValue());
+      workUnits.add(partitionState.createWorkUnit(extract));
+    }
+
+    // 将上一个job失败需要retry的workunit添加到本job的workunit中
+    List&lt;WorkUnit&gt; previousWorkUnits = this.getPreviousWorkUnitsForRetry(state);
+    LOG.info(&quot;Total number of incomplete tasks from the previous run: &quot; + previousWorkUnits.size());
+    workUnits.addAll(previousWorkUnits);
+
+    return workUnits;
+  }
+</code></pre>
+
+<h2 id="toc_6">五.MysqlSource</h2>
+
+<p>最后MysqlSource只实现了getExtractor接口，即返回一个getExtractor对象.</p>
+
+<pre><code class="language-java">public class MysqlSource extends QueryBasedSource&lt;JsonArray, JsonElement&gt; {
+    private static final Logger LOG = LoggerFactory.getLogger(MysqlSource.class);
+
+    public Extractor&lt;JsonArray, JsonElement&gt; getExtractor(WorkUnitState state)
+      throws IOException {
+        Extractor&lt;JsonArray, JsonElement&gt; extractor = null;
+        try {
+          extractor = new MysqlExtractor(state).build();
+        } catch (ExtractPrepareException e) {
+          LOG.error(&quot;Failed to prepare extractor: error - &quot; + e.getMessage());
+          throw new IOException(e);
+        }
+        return extractor;
+    }
+}
+</code></pre>
+
+<h2 id="toc_7">总结</h2>
+
+<p>本文主要介绍了Source的几个重要功能, 以MysqlSource为例介绍了Source是如何getWorkunits的, 在这过程中又结合watermark简单描述了gobblin的retry策略。</p>
+
+<h2 id="toc_8">本文完</h2>
+
+<ul>
+<li>原创文章，转载请注明： 转载自<a href="http://lamborryan.github.io">Lamborryan</a>，作者：<a href="http://lamborryan.github.io/about/">Ruan Chengfeng</a></li>
+<li>本文链接地址：<a href="http://lamborryan.github.io/gobblin-source">http://lamborryan.github.io/gobblin-source</a></li>
+<li>本文基于<a href="http://creativecommons.org/licenses/by/2.5/cn/">署名2.5中国大陆许可协议</a>发布，欢迎转载、演绎或用于商业目的，但是必须保留本文署名和文章链接。 如您有任何疑问或者授权方面的协商，请邮件联系我。</li>
+</ul>
+
+			</div>
+
+		
+	  
+		<footer>
+		 <p class="meta">
+
+			<strong>Categories:</strong>&nbsp; 
+			<span class="categories">
+			
+			    <a class='category' href='Gobblin.html'>Gobblin</a>&nbsp;
+			 
+			</span>
+		    </p>
+		    <p class="meta">
+		      
+		 </p>
+	    
+		<div class="sharing">
+		  
+          
+
+          
+
+		</div>
+
+	    <p class="meta">
+	    
+	        <a class="basic-alignment left" href="15155073098227.html" 
+	        title="Previous Post: Gobblin系列(8)之Extractor源码分析">&laquo; Gobblin系列(8)之Extractor源码分析</a>
+	    
+	    
+	        <a class="basic-alignment right" href="15155068855798.html" 
+	        title="Next Post: Gobblin系列(6)之State">Gobblin系列(6)之State &raquo;</a>
+	    
+	    </p>
+	  </footer>
+	</article>
+</div>
+ <aside class="sidebar"> 
+
+	<section>
+	  <h1>Categories</h1>
+	  <ul id="recent_posts">
+	  
+	      <li class="post">
+	        <a href="%E6%95%B0%E4%BB%93%E5%BB%BA%E6%A8%A1.html"><strong>数仓建模&nbsp;(5)</strong></a>
+	         <p class="cat-children-p"> 
+	        
+	        	<a href="StarSchema%E7%AC%94%E8%AE%B0.html">StarSchema笔记&nbsp;(4)</a>&nbsp;&nbsp;
+	        
+	        	<a href="Data%20Vault.html">Data Vault&nbsp;(1)</a>&nbsp;&nbsp;
+	        
+	         </p> 
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%BC%80%E6%BA%90%E6%8A%80%E6%9C%AF.html"><strong>开源技术&nbsp;(10)</strong></a>
+	         <p class="cat-children-p"> 
+	        
+	        	<a href="Apache%20Calcite.html">Apache Calcite&nbsp;(1)</a>&nbsp;&nbsp;
+	        
+	        	<a href="Gobblin.html">Gobblin&nbsp;(8)</a>&nbsp;&nbsp;
+	        
+	        	<a href="Solr.html">Solr&nbsp;(1)</a>&nbsp;&nbsp;
+	        
+	         </p> 
+	      </li>
+	   
+	  </ul>
+	</section>
+	<section>
+	  <h1>Recent Posts</h1>
+	  <ul id="recent_posts">
+	  
+	      
+		      <li class="post">
+		        <a href="15155074940397.html">Solr4.8.0源码分析汇总</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="15155073098227.html">Gobblin系列(8)之Extractor源码分析</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="15155071664887.html">Gobblin系列(7)之Source源码分析</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="15155068855798.html">Gobblin系列(6)之State</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="15155067914960.html">Gobblin系列(5)之Writer源码分析</a>
+		      </li>
+	     
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	   
+	  </ul>
+	</section>
+	
+</aside> </div></div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2014 -  -
+  <span class="credit">Powered by <a target="_blank" href="http://www.mweb.im">MWeb</a> &nbsp;&nbsp; Theme by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+
+  
+    
+
+
+
+
+</body>
+</html>

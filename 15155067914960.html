@@ -1,0 +1,741 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>
+    
+  Gobblin系列(5)之Writer源码分析 - 追风的蓝宝
+  
+
+  </title>
+  <meta name="author" content="">
+  <meta name="description" content="爱好大数据与开源技术">
+
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <link href="asset/css/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="atom.xml" rel="alternate" title="追风的蓝宝" type="application/atom+xml">
+  <script src="asset/js/modernizr-2.0.js"></script>
+  <script src="asset/js/jquery.min.js"></script>
+  <script src="asset/highlightjs/highlight.pack.js"></script>
+  <link href="asset/highlightjs/styles/solarized_light.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script>hljs.initHighlightingOnLoad();</script>
+
+  <style type="text/css">
+  .cat-children-p{ padding: 6px 0px;}
+  .hljs{background: none;}
+  </style>
+  <script type="text/javascript">
+  var isAddSildbar = true;
+  </script>
+  <script src="asset/js/octopress.js" type="text/javascript"></script>
+</head>
+<script type="text/javascript">
+//链接新开窗口
+function addBlankTargetForLinks () {
+  $('a[href^="http"]').each(function(){
+      $(this).attr('target', '_blank');
+  });
+}
+$(document).ready(function(event) {
+  addBlankTargetForLinks();
+});
+</script>
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="index.html">追风的蓝宝</a></h1>
+  
+    <h2>爱好大数据与开源技术</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:www.lamborryan.com" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+
+  <li id=""><a target="_self" href="index.html">Home</a></li>
+
+  <li id=""><a target="_self" href="archives.html">Archives</a></li>
+
+  <li id=""><a target="_self" href="about.html">About</a></li>
+
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content"> 
+<div>
+	<article class="hentry" role="article">
+	<header>
+			  	<h1 class="entry-title">Gobblin系列(5)之Writer源码分析</h1>
+				<p class="meta"><time datetime="2018-01-09T22:06:31+08:00" pubdate data-updated="true">2018/1/9</time></p>
+			 </header>
+		  	<div class="entry-content">
+			  	<ul>
+<li>
+<a href="#toc_0">简介</a>
+</li>
+<li>
+<a href="#toc_1">流程简述</a>
+</li>
+<li>
+<a href="#toc_2">PartitionedDataWriter</a>
+<ul>
+<li>
+<ul>
+<li>
+<a href="#toc_3">PartitionedDataWriter的初始化</a>
+</li>
+<li>
+<a href="#toc_4">PartitionedDataWriter的基类</a>
+</li>
+<li>
+<a href="#toc_5">PartitionedDataWriter的具体实现</a>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<a href="#toc_6">partition</a>
+</li>
+<li>
+<a href="#toc_7">DataWriter</a>
+</li>
+<li>
+<a href="#toc_8">Publiser</a>
+</li>
+<li>
+<a href="#toc_9">总结</a>
+</li>
+</ul>
+
+
+<h2 id="toc_0">简介</h2>
+
+<p>Gobblin的writer功能还是很强大的, 该Stage负责将record写入临时文件中。由于项目的需要, 要求把每天的kafka日志按照日期按天输出到不同的目录。所以花了一天时间研究了Writer的源码和流程。</p>
+
+<!--more-->
+
+<h2 id="toc_1">流程简述</h2>
+
+<p><img src="media/15155067914960/gobblin-7.png" alt="gobblin-7"/></p>
+
+<ul>
+<li>PartitionedDataWriter是整个过程的中心，它负责链接partitioner, PartitionAwareDataWriterBuilder,和writer.</li>
+<li>partitioner负责计算每一个record的partition.</li>
+<li>PartitionedDataWriter会在内存中创建LoadingCache<k,v>,存放partition和writer的哈希映射，PartitionAwareDataWriterBuilder负责为那些还没存放在内存的partition创建writer。</li>
+<li>writer负责进行数据落地，即对同一partition的records调用其对应的writer写入数据。</li>
+</ul>
+
+<blockquote>
+<p>注意 不管有没有需要partition, Gobblin的writer都是从PartitionedDataWriter开始,可以把不需要分区这种情况理解为只有一个分区。</p>
+</blockquote>
+
+<p>接下来让我们根据源码来展开整个过程吧</p>
+
+<h2 id="toc_2">PartitionedDataWriter</h2>
+
+<h4 id="toc_3">PartitionedDataWriter的初始化</h4>
+
+<p>Writer流程得从上一篇文章<a href="http://lamborryan.github.io/gobblin-runtime-view/">《Gobblin系列四之Runtime初探》</a>上谈起。<br/>
+Writer是在fork.class中processRecords方法通过buildWriterIfNotPresent创建的, 那么我们先从这里开始查看源码。</p>
+
+<pre><code class="language-java">private void buildWriterIfNotPresent() throws IOException {
+  if (!this.writer.isPresent()) {
+    try {
+      this.writer = Optional.of(this.closer.register(buildWriter()));
+    } catch (SchemaConversionException sce) {
+      throw new IOException(&quot;Failed to build writer for fork &quot; + this.index, sce);
+    }
+  }
+}
+/**
+ * Build a {@link gobblin.writer.DataWriter} for writing fetched data records.
+ */
+private DataWriter&lt;Object&gt; buildWriter()
+    throws IOException, SchemaConversionException {
+  DataWriterBuilder&lt;Object, Object&gt; builder = this.taskContext.getDataWriterBuilder(this.branches, this.index)
+      .writeTo(Destination.of(this.taskContext.getDestinationType(this.branches, this.index), this.taskState))
+      .writeInFormat(this.taskContext.getWriterOutputFormat(this.branches, this.index))
+      .withWriterId(this.taskId)
+      .withSchema(this.convertedSchema.orNull())
+      .withBranches(this.branches)
+      .forBranch(this.index);
+
+  return new PartitionedDataWriter&lt;&gt;(builder, this.taskContext.getTaskState());
+}
+</code></pre>
+
+<p>从上述代码上看出, 一切的writer都开始于PartitionedDataWriter. 看看这个名字就可以看出gobblin默认就支持分区输出, 所以心里就放松了大半, 这个功能不需要花太大精力开发了。那么接下来就是分析PartitionedDataWriter这个class了。</p>
+
+<h4 id="toc_4">PartitionedDataWriter的基类</h4>
+
+<p>DataWriter做为interface定义了实现writer所需要实现的方法, 而PartitionedDataWriter继承了DataWriter,</p>
+
+<pre><code class="language-java">public interface DataWriter&lt;D&gt; extends Closeable {
+
+  /**
+   * Write a source data record in Avro format using the given converter.
+   *
+   * @param record data record to write
+   * @throws IOException if there is anything wrong writing the record
+   */
+  public void write(D record)
+      throws IOException;
+
+  /**
+   * Commit the data written.
+   *
+   * @throws IOException if there is anything wrong committing the output
+   */
+  public void commit()
+      throws IOException;
+
+  /**
+   * Cleanup context/resources.
+   *
+   * @throws IOException if there is anything wrong doing cleanup.
+   */
+  public void cleanup()
+      throws IOException;
+
+  /**
+   * Get the number of records written.
+   *
+   * @return number of records written
+   */
+  public long recordsWritten();
+
+  /**
+   * Get the number of bytes written.
+   *
+   * @return number of bytes written
+   */
+  public long bytesWritten()
+      throws IOException;
+}
+</code></pre>
+
+<h4 id="toc_5">PartitionedDataWriter的具体实现</h4>
+
+<p>PartitionedDataWriter他的代码还是比较简单的, 主要分为以下几个功能:</p>
+
+<p>1.如果配置文件指定了writer.partitioner.class这个属性, 那么就创建这个partitioner的实例, 负责对record的分区。如果没有设置该属性,就意味着不需要进行分区,所以所有的record都分在一个partitioner中。</p>
+
+<pre><code class="language-java">if (state.contains(ConfigurationKeys.WRITER_PARTITIONER_CLASS)) {
+  // 如果设置了writer.partitioner.class属性则根据该类创建partitioner
+  Preconditions.checkArgument(builder instanceof PartitionAwareDataWriterBuilder,
+      String.format(&quot;%s was specified but the writer %s does not support partitioning.&quot;,
+          ConfigurationKeys.WRITER_PARTITIONER_CLASS, builder.getClass().getCanonicalName()));
+
+  try {
+    this.shouldPartition = true;
+    // 创建dataWriterBuilder，后续生成dataWriter
+    this.builder = Optional.of(PartitionAwareDataWriterBuilder.class.cast(builder));
+    // 创建partitionner
+    this.partitioner = Optional.of(WriterPartitioner.class.cast(
+        ConstructorUtils.invokeConstructor(Class.forName(state.getProp(ConfigurationKeys.WRITER_PARTITIONER_CLASS)),
+            state, builder.getBranches(), builder.getBranch())));
+  } catch (ReflectiveOperationException roe) {
+    throw new IOException(roe);
+  }
+} else {
+  // 如果没有设置了writer.partitioner.class, 则用NON_PARTITIONED_WRITER_KEY来表示只有一个partitioner
+  this.shouldPartition = false;
+  InstrumentedDataWriterDecorator&lt;D&gt; writer =
+      this.closer.register(new InstrumentedDataWriterDecorator&lt;D&gt;(builder.build(), state));
+  this.partitionWriters.put(NON_PARTITIONED_WRITER_KEY, writer);
+  this.partitioner = Optional.absent();
+  this.builder = Optional.absent();
+}
+</code></pre>
+
+<p>所以需要在.pull配置writer.partitioner.class=gobblin.core.writer.partitioner.TimeBasedJsonWriterPartitioner来告诉gobblin按照TimeBasedJsonWriterPartitioner的规则进行partition</p>
+
+<p>2.设置分区后, 在内存中以LoadingCache<k,v>存放record的partition和其对应的writer.</p>
+
+<pre><code class="language-java">
+private final LoadingCache&lt;GenericRecord, DataWriter&lt;D&gt;&gt; partitionWriters;
+
+this.partitionWriters = CacheBuilder.newBuilder().build(new CacheLoader&lt;GenericRecord, DataWriter&lt;D&gt;&gt;() {
+      @Override
+      public DataWriter&lt;D&gt; load(final GenericRecord key) throws Exception {
+        return closer
+            .register(new InstrumentedPartitionedDataWriterDecorator&lt;D&gt;(createPartitionWriter(key), state, key));
+      }
+    });
+</code></pre>
+
+<blockquote>
+<p>上述代码实现了回调, 当partitionWriters.get(key)时, 如果没有key,则通过load来创建新的writer</p>
+</blockquote>
+
+<p>3.为新的record partition创建writer。</p>
+
+<pre><code class="language-java">private DataWriter&lt;D&gt; createPartitionWriter(GenericRecord partition) throws IOException {
+  if (!this.builder.isPresent()) {
+    throw new IOException(&quot;Writer builder not found. This is an error in the code.&quot;);
+  }
+  return this.builder.get().forPartition(partition).withWriterId(this.baseWriterId + &quot;_&quot; + this.writerIdSuffix++)
+      .build();
+}
+</code></pre>
+
+<p>writer的创建分为两步:</p>
+
+<ul>
+<li>根据partition, 创建PartitionAwareDataWriterBuilder, 即this.builder.get().forPartition(partition)返回partition对应的PartitionAwareDataWriterBuilder</li>
+<li>调用PartitionAwareDataWriterBuilder的build创建DataWriter</li>
+</ul>
+
+<pre><code class="language-java">public abstract class PartitionAwareDataWriterBuilder&lt;S, D&gt; extends DataWriterBuilder&lt;S, D&gt; {
+
+  protected Optional&lt;GenericRecord&gt; partition = Optional.absent();
+
+  public PartitionAwareDataWriterBuilder&lt;S, D&gt; forPartition(GenericRecord partition) {
+    this.partition = Optional.fromNullable(partition);
+    return this;
+  }
+
+  public abstract boolean validatePartitionSchema(Schema partitionSchema);
+}
+
+</code></pre>
+
+<p>关于PartitionAwareDataWriterBuilder的介绍请看文档<a href="https://github.com/linkedin/gobblin/wiki/Partitioned%20Writers">&lt;Partitioned Writers &gt;</a> ,结合它来看本文更容易理解。</p>
+
+<p>例如以下的simpleWriterBuilder:</p>
+
+<pre><code class="language-java">public class SimpleDataWriterBuilder extends FsDataWriterBuilder&lt;String, byte[]&gt; {
+  @Override
+  public DataWriter&lt;byte[]&gt; build() throws IOException {
+    return new SimpleDataWriter(this, this.destination.getProperties());
+  }
+}
+</code></pre>
+
+<p>所以需要.pull文件中指定writer.builder.class=gobblin.writer.SimpleDataWriterBuilder来告诉gobblin我需要通过SimpleDataWriter来进行datawriter</p>
+
+<p>4.writer 和 commit</p>
+
+<pre><code class="language-java">@Override
+public void write(D record) throws IOException {
+  try {
+
+    // 使用partitioner来计算record的partition
+    GenericRecord partition =
+        this.shouldPartition ? this.partitioner.get().partitionForRecord(record) : NON_PARTITIONED_WRITER_KEY;
+
+    // 根据partition获取datawriter, 如果没有相应的datawriter则创建一个新的datawriter
+    DataWriter&lt;D&gt; writer = this.partitionWriters.get(partition);
+
+    // 调用datawriter的writer进行record的writer
+    writer.write(record);
+  } catch (ExecutionException ee) {
+    throw new IOException(ee);
+  }
+}
+
+@Override
+public void commit() throws IOException {
+  int writersCommitted = 0;
+  for (Map.Entry&lt;GenericRecord, DataWriter&lt;D&gt;&gt; entry : this.partitionWriters.asMap().entrySet()) {
+    try {
+      // 对所有的datawriter调用commit
+      entry.getValue().commit();
+      writersCommitted++;
+    } catch (Throwable throwable) {
+      log.error(String.format(&quot;Failed to commit writer for partition %s.&quot;, entry.getKey()), throwable);
+    }
+  }
+  if (writersCommitted &lt; this.partitionWriters.asMap().size()) {
+    throw new IOException(&quot;Failed to commit all writers.&quot;);
+  }
+}
+</code></pre>
+
+<p>由此可见PartitionedDataWriter的writer和commit都是根据record的partition获取其对应的writer然后进行write和commit。 只不过在进行writer的时候如果还没该partition时会调用createPartitionWriter为该partition创建相应的writer。</p>
+
+<p>至此关于PartitionedDataWriter的代码逻辑就介绍的差不多了。</p>
+
+<h2 id="toc_6">partition</h2>
+
+<p>所有partition.class都继承自接口WriterPartitioner, 他实现两个功能:</p>
+
+<pre><code class="language-java">
+public interface WriterPartitioner&lt;D&gt; {
+
+  // partition的结构,
+  public Schema partitionSchema();
+
+  // 根据record计算partition
+  public GenericRecord partitionForRecord(D record);
+
+}
+</code></pre>
+
+<p>Gobblin默认支持时间为key的分区, 它实现了一个abstract class TimeBasedWriterPartitioner, 我们只需要根据自己的需要继承这个类做相应的开发就行了。比如我的record是json格式的, 那么我需要继承得到自己的实现类TimeBasedJsonWriterPartitioner.(Gobblin通过继承TimeBasedWriterPartitioner实现了TimeBasedAvroWriterPartitioner, 即对应record格式是avro的)</p>
+
+<p>接下来让我们看看TimeBasedWriterPartitioner是怎么实现的以上两个方法的。</p>
+
+<p>1.partitionForRecord方法</p>
+
+<pre><code class="language-java">
+@Override
+ public GenericRecord partitionForRecord(D record) {
+   // 虚函数，需要我们自己写解析方法, 即根据record的格式解析出里面的时间字段。
+   long timestamp = getRecordTimestamp(record);
+
+   // 按照partitionSchema方法产生的Schema封装timestamp为GenericRecord
+   GenericRecord partition = new GenericData.Record(this.schema);
+   if (!Strings.isNullOrEmpty(this.writerPartitionPrefix)) {
+     partition.put(PREFIX, this.writerPartitionPrefix);
+   }
+   if (!Strings.isNullOrEmpty(this.writerPartitionSuffix)) {
+     partition.put(SUFFIX, this.writerPartitionSuffix);
+   }
+
+   if (this.timestampToPathFormatter.isPresent()) {
+     String partitionedPath = getPartitionedPath(timestamp);
+     partition.put(PARTITIONED_PATH, partitionedPath);
+   } else {
+     DateTime dateTime = new DateTime(timestamp, this.timeZone);
+     switch (this.granularity) {
+       case MINUTE:
+         partition.put(Granularity.MINUTE.toString(), dateTime.getMinuteOfHour());
+       case HOUR:
+         partition.put(Granularity.HOUR.toString(), dateTime.getHourOfDay());
+       case DAY:
+         partition.put(Granularity.DAY.toString(), dateTime.getDayOfMonth());
+       case MONTH:
+         partition.put(Granularity.MONTH.toString(), dateTime.getMonthOfYear());
+       case YEAR:
+         partition.put(Granularity.YEAR.toString(), dateTime.getYear());
+     }
+   }
+
+   return partition;
+ }
+
+ // 虚函数，需要我们自己写解析方法, 即根据record的格式解析出里面的时间字段。
+ public abstract long getRecordTimestamp(D record);
+</code></pre>
+
+<p>2.partitionSchema方法</p>
+
+<pre><code class="language-java">
+this.schema = getSchema();
+
+private Schema getSchema() {
+  if (this.timestampToPathFormatter.isPresent()) {
+    return getDateTimeFormatBasedSchema();
+  } else {
+    return getGranularityBasedSchema();
+  }
+}
+
+@Override
+public Schema partitionSchema() {
+  return this.schema;
+}
+
+</code></pre>
+
+<p>该段代码的意思就是根据writer.partition.granularity这个配置项来组合Schema, 比如我设置了writer.partition.granularity=DAY.就返回Granularity.DAY.toString()</p>
+
+<p>最后附上我的实现类TimeBasedJsonWriterPartitioner怎么实现getRecordTimestamp</p>
+
+<pre><code class="language-java">
+/**
+ *  Check if the partition column value is present and is a Long object. Otherwise, use current system time.
+ */
+private long getRecordTimestamp(Optional&lt;Object&gt; writerPartitionColumnValue) {
+
+    return writerPartitionColumnValue.orNull()  instanceof Long ? (Long) writerPartitionColumnValue.get()
+            : System.currentTimeMillis();
+}
+
+@Override
+public long getRecordTimestamp(byte[] record) {
+
+    return getRecordTimestamp(getWriterPartitionColumnValue(record));
+}
+
+
+/**
+ * Retrieve the value of the partition column field specified by this.partitionColumns
+ */
+private Optional&lt;Object&gt; getWriterPartitionColumnValue(byte[] record){
+    if (!this.partitionColumns.isPresent()) {
+        return Optional.absent();
+    }
+
+    Optional&lt;Object&gt; fieldValue = Optional.absent();
+
+    for (String partitionColumn : this.partitionColumns.get()) {
+        JSONObject jsonObject = new JSONObject(new String(record));
+        fieldValue = Optional.of(jsonObject.get(partitionColumn));
+        if(fieldValue.isPresent()){
+            return fieldValue;
+        }
+    }
+
+    return fieldValue;
+}
+
+</code></pre>
+
+<p>上述代码实现了以下功能:</p>
+
+<ul>
+<li>根据配置writer.partition.columns获取字段名</li>
+<li>解析json格式的record, 获取writer.partition.columns字段对应的时间戳</li>
+<li>如果json解析失败则返回当前时间的时间戳。</li>
+</ul>
+
+<p>比如我设置了writer.partition.columns=timestamp</p>
+
+<blockquote>
+<p>我们需要writer.partition.timezone=Asia/Shanghai这个配置来指定时区,否则会出错。</p>
+</blockquote>
+
+<h2 id="toc_7">DataWriter</h2>
+
+<p>Gobblin默认实现了SimpleDataWriter和AvroHDFSDataWriter, 它们都继承了FsDataWriter, FsDataWriter继承了DataWriter.</p>
+
+<p>SimpleDataWriter将byte[]格式的record写入到文件系统(本地或者hdfs), 而AvroHDFSDataWriter则将avro格式的record写入到文件系统中.</p>
+
+<p>以SimpleDataWriter为例, record被写入到stageFile目录中。</p>
+
+<pre><code class="language-java">@Override
+public void write(byte[] record) throws IOException {
+  Preconditions.checkNotNull(record);
+
+  byte[] toWrite = record;
+  if (this.recordDelimiter.isPresent()) {
+    toWrite = Arrays.copyOf(record, record.length + 1);
+    toWrite[toWrite.length - 1] = this.recordDelimiter.get();
+  }
+  if (this.prependSize) {
+    long recordSize = toWrite.length;
+    ByteBuffer buf = ByteBuffer.allocate(Longs.BYTES);
+    buf.putLong(recordSize);
+    toWrite = ArrayUtils.addAll(buf.array(), toWrite);
+  }
+  this.stagingFileOutputStream.write(toWrite);
+  this.bytesWritten += toWrite.length;
+  this.recordsWritten++;
+}
+
+</code></pre>
+
+<blockquote>
+<p>每一个partition对应自己的dataWriter, 每一个dataWriter的作用范围也只能是自己的partition。</p>
+</blockquote>
+
+<h2 id="toc_8">Publiser</h2>
+
+<p>到这一步为止, Gobblin已经将record按timestamp进行分区并按不同的目录写入到stageFile目录中。但是整个过程还没有完整。我们需要通过Publiser把数据publish到job－output上去。</p>
+
+<p>刚好Gobblin已经帮我们实现了基于partition的publiser TimePartitionedDataPublisher.因此加入以下配置项即可:data.publisher.type=gobblin.publisher.TimePartitionedDataPublisher</p>
+
+<h2 id="toc_9">总结</h2>
+
+<p>本文简单介绍了整个writer的流程, 尤其是partition writer。 并结合源码具体介绍了 PartitionedDataWriter, PartitionAwareDataWriterBuilder, partition, datawriter, publiser这几个重要模块。</p>
+
+<p>同时介绍了我自己实现TimeBasedJsonWriterPartitioner的过程。</p>
+
+<p>最后是完整的partition writer的配置</p>
+
+<pre><code class="language-bash">
+kafka.brokers=x15:9091
+
+source.class=gobblin.source.extractor.extract.kafka.KafkaSimpleSource
+extract.namespace=gobblin.extract.kafka
+
+topic.whitelist=biz_stats
+writer.builder.class=gobblin.writer.SimpleDataWriterBuilder
+simple.writer.delimiter=\n
+simple.writer.prepend.size=false
+writer.file.path.type=tablename
+writer.destination.type=HDFS
+writer.output.format=csv
+writer.partitioner.class=xiaomei.gobblin.core.writer.partitioner.TimeBasedJsonWriterPartitioner
+writer.partition.level=date
+writer.partition.pattern=YYYY/MM/dd
+writer.partition.columns=timestamp
+writer.partition.timezone=Asia/Shanghai
+
+data.publisher.type=gobblin.publisher.TimePartitionedDataPublisher
+
+</code></pre>
+
+<p>本文完</p>
+
+<ul>
+<li>原创文章，转载请注明： 转载自<a href="http://lamborryan.github.io">Lamborryan</a>，作者：<a href="http://lamborryan.github.io/about/">Ruan Chengfeng</a></li>
+<li>本文链接地址：<a href="http://lamborryan.github.io/gobblin-state">http://lamborryan.github.io/gobblin-state</a></li>
+<li>本文基于<a href="http://creativecommons.org/licenses/by/2.5/cn/">署名2.5中国大陆许可协议</a>发布，欢迎转载、演绎或用于商业目的，但是必须保留本文署名和文章链接。 如您有任何疑问或者授权方面的协商，请邮件联系我。</li>
+</ul>
+
+			</div>
+
+		
+	  
+		<footer>
+		 <p class="meta">
+
+			<strong>Categories:</strong>&nbsp; 
+			<span class="categories">
+			
+			    <a class='category' href='Gobblin.html'>Gobblin</a>&nbsp;
+			 
+			</span>
+		    </p>
+		    <p class="meta">
+		      
+		 </p>
+	    
+		<div class="sharing">
+		  
+          
+
+          
+
+		</div>
+
+	    <p class="meta">
+	    
+	        <a class="basic-alignment left" href="15155068855798.html" 
+	        title="Previous Post: Gobblin系列(6)之State">&laquo; Gobblin系列(6)之State</a>
+	    
+	    
+	        <a class="basic-alignment right" href="15155066323075.html" 
+	        title="Next Post: Gobblin系列(4)之Runtime初探">Gobblin系列(4)之Runtime初探 &raquo;</a>
+	    
+	    </p>
+	  </footer>
+	</article>
+</div>
+ <aside class="sidebar"> 
+
+	<section>
+	  <h1>Categories</h1>
+	  <ul id="recent_posts">
+	  
+	      <li class="post">
+	        <a href="%E6%95%B0%E4%BB%93%E5%BB%BA%E6%A8%A1.html"><strong>数仓建模&nbsp;(5)</strong></a>
+	         <p class="cat-children-p"> 
+	        
+	        	<a href="StarSchema%E7%AC%94%E8%AE%B0.html">StarSchema笔记&nbsp;(4)</a>&nbsp;&nbsp;
+	        
+	        	<a href="Data%20Vault.html">Data Vault&nbsp;(1)</a>&nbsp;&nbsp;
+	        
+	         </p> 
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%BC%80%E6%BA%90%E6%8A%80%E6%9C%AF.html"><strong>开源技术&nbsp;(10)</strong></a>
+	         <p class="cat-children-p"> 
+	        
+	        	<a href="Apache%20Calcite.html">Apache Calcite&nbsp;(1)</a>&nbsp;&nbsp;
+	        
+	        	<a href="Gobblin.html">Gobblin&nbsp;(8)</a>&nbsp;&nbsp;
+	        
+	        	<a href="Solr.html">Solr&nbsp;(1)</a>&nbsp;&nbsp;
+	        
+	         </p> 
+	      </li>
+	   
+	  </ul>
+	</section>
+	<section>
+	  <h1>Recent Posts</h1>
+	  <ul id="recent_posts">
+	  
+	      
+		      <li class="post">
+		        <a href="15155074940397.html">Solr4.8.0源码分析汇总</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="15155073098227.html">Gobblin系列(8)之Extractor源码分析</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="15155071664887.html">Gobblin系列(7)之Source源码分析</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="15155068855798.html">Gobblin系列(6)之State</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="15155067914960.html">Gobblin系列(5)之Writer源码分析</a>
+		      </li>
+	     
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	   
+	  </ul>
+	</section>
+	
+</aside> </div></div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2014 -  -
+  <span class="credit">Powered by <a target="_blank" href="http://www.mweb.im">MWeb</a> &nbsp;&nbsp; Theme by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+
+  
+    
+
+
+
+
+</body>
+</html>

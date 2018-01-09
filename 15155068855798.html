@@ -1,0 +1,533 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>
+    
+  Gobblin系列(6)之State - 追风的蓝宝
+  
+
+  </title>
+  <meta name="author" content="">
+  <meta name="description" content="爱好大数据与开源技术">
+
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <link href="asset/css/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="atom.xml" rel="alternate" title="追风的蓝宝" type="application/atom+xml">
+  <script src="asset/js/modernizr-2.0.js"></script>
+  <script src="asset/js/jquery.min.js"></script>
+  <script src="asset/highlightjs/highlight.pack.js"></script>
+  <link href="asset/highlightjs/styles/solarized_light.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script>hljs.initHighlightingOnLoad();</script>
+
+  <style type="text/css">
+  .cat-children-p{ padding: 6px 0px;}
+  .hljs{background: none;}
+  </style>
+  <script type="text/javascript">
+  var isAddSildbar = true;
+  </script>
+  <script src="asset/js/octopress.js" type="text/javascript"></script>
+</head>
+<script type="text/javascript">
+//链接新开窗口
+function addBlankTargetForLinks () {
+  $('a[href^="http"]').each(function(){
+      $(this).attr('target', '_blank');
+  });
+}
+$(document).ready(function(event) {
+  addBlankTargetForLinks();
+});
+</script>
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="index.html">追风的蓝宝</a></h1>
+  
+    <h2>爱好大数据与开源技术</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:www.lamborryan.com" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+
+  <li id=""><a target="_self" href="index.html">Home</a></li>
+
+  <li id=""><a target="_self" href="archives.html">Archives</a></li>
+
+  <li id=""><a target="_self" href="about.html">About</a></li>
+
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content"> 
+<div>
+	<article class="hentry" role="article">
+	<header>
+			  	<h1 class="entry-title">Gobblin系列(6)之State</h1>
+				<p class="meta"><time datetime="2018-01-09T22:08:05+08:00" pubdate data-updated="true">2018/1/9</time></p>
+			 </header>
+		  	<div class="entry-content">
+			  	<ul>
+<li>
+<a href="#toc_0">一. 简介</a>
+</li>
+<li>
+<a href="#toc_1">二. SourceState, JobState, DatasetState</a>
+<ul>
+<li>
+<a href="#toc_2">2.1.SourceState</a>
+</li>
+<li>
+<a href="#toc_3">2.2.JobState</a>
+</li>
+<li>
+<a href="#toc_4">2.3.DatasetState</a>
+</li>
+</ul>
+</li>
+<li>
+<a href="#toc_5">三. WorkUnit, MutliWorkUnit</a>
+<ul>
+<li>
+<a href="#toc_6">3.1.WorkUnit</a>
+</li>
+<li>
+<a href="#toc_7">3.2.MutliWorkUnit</a>
+</li>
+</ul>
+</li>
+<li>
+<a href="#toc_8">四. WorkUnitState, TaskState</a>
+<ul>
+<li>
+<a href="#toc_9">4.1.WorkUnitState</a>
+</li>
+<li>
+<a href="#toc_10">4.2.TaskState</a>
+</li>
+</ul>
+</li>
+<li>
+<a href="#toc_11">五. Extract</a>
+</li>
+<li>
+<a href="#toc_12">六. 运行过程转换</a>
+</li>
+<li>
+<a href="#toc_13">七. 总结</a>
+</li>
+</ul>
+
+
+<h2 id="toc_0">一. 简介</h2>
+
+<p>Gobblin实在是有太多的state了, 比如SourceState, JobState, DatasetState, WorkUnit等等. 而这些State又跟整个Gobblin的各个阶段密切联系, 所以我独立出一篇文章来理顺下这些State。</p>
+
+<!-- more-->
+
+<p>本文借鉴了这篇文档<a href="http://gobblin.readthedocs.org/en/latest/user-guide/State-Management-and-Watermarks/#gobblin-state-deep-dive">《gobblin-state-deep-dive》</a></p>
+
+<p>下图是Gobblin的类关系, 通过它我们可以对整个State体系有个初步了解:</p>
+
+<p><img src="media/15155068855798/gobblin-state-1.png" alt="gobblin-state-1"/></p>
+
+<p>基类<code>State</code>是<code>Properties</code>的封装, 并提供了对它的一系列方法。</p>
+
+<h2 id="toc_1">二. SourceState, JobState, DatasetState</h2>
+
+<h3 id="toc_2">2.1.SourceState</h3>
+
+<p>SourceState主要有几个任务:</p>
+
+<ol>
+<li>包含当前job的配置文件的配置</li>
+<li>包含上一个job在StateStore存储下来的State</li>
+<li>为Source提供根据Extract生成WorkUnit的方法</li>
+<li>提供生成Extract的方法</li>
+</ol>
+
+<p>因此SourceState主要作用阶段在source.</p>
+
+<pre><code class="language-java">public class SourceState extends State {
+    * * *
+    /* 上一个job的state */
+    private final Map&lt;String, SourceState&gt; previousDatasetStatesByUrns;
+    private final List&lt;WorkUnitState&gt; previousWorkUnitStates = Lists.newArrayList();
+
+    /* 创建Extract Statte */
+    public synchronized Extract createExtract(Extract.TableType type, String namespace, String table) {
+      Extract extract = new Extract(this, type, namespace, table);
+      while (EXTRACT_SET.contains(extract)) {
+        if (Strings.isNullOrEmpty(extract.getExtractId())) {
+          extract.setExtractId(DTF.print(new DateTime()));
+        } else {
+          DateTime extractDateTime = DTF.parseDateTime(extract.getExtractId());
+          extract.setExtractId(DTF.print(extractDateTime.plusSeconds(1)));
+        }
+      }
+      EXTRACT_SET.add(extract);
+      return extract;
+    }
+
+    /* 根据State创建WorkUnit Statte */
+    public WorkUnit createWorkUnit(Extract extract) {
+      return new WorkUnit(this, extract);
+    }
+
+    * * *
+}
+</code></pre>
+
+<h3 id="toc_3">2.2.JobState</h3>
+
+<p>JobState在SourceState基础上更进了一步, 它不但包含了SourceState的配置和功能, 更加入了job运行时的配置参数, 比如job ID, 开始时间, 结束时间, 以及job的运行状态等, 以及每个task的TaskState.</p>
+
+<pre><code class="language-java">
+public class JobState extends SourceState {
+
+  /**
+   * Job运行状态
+   */
+  public enum RunningState {
+    PENDING, RUNNING, SUCCESSFUL, COMMITTED, FAILED, CANCELLED
+  }
+
+  private String jobName;   // job运行名字
+  private String jobId;     // job id
+  private long startTime = 0; // job开始时间
+  private long endTime = 0; // job结束时间
+  private long duration = 0; // 持续时间
+  private RunningState state = RunningState.PENDING; //Job运行状态
+  private int taskCount = 0; // task个数
+  private final Map&lt;String, TaskState&gt; taskStates = Maps.newLinkedHashMap();// 所有task状态
+
+}
+</code></pre>
+
+<p>因为JobState基本上包含了所有job的运行信息, 所以它的生命周期就是完整的job的生命周期, 特别是在metrics输出信息。</p>
+
+<h3 id="toc_4">2.3.DatasetState</h3>
+
+<p>DatasetState在JobState的基础上添加了dataset.urn属性以此来区分不同的dataset。目前主要用在<code>FsDatasetStateStore</code></p>
+
+<h2 id="toc_5">三. WorkUnit, MutliWorkUnit</h2>
+
+<h3 id="toc_6">3.1.WorkUnit</h3>
+
+<p>WorkUnit主要包含以下几个内容:</p>
+
+<ol>
+<li>包含State即SourceState的所有properties, 这是因为WorkUnit是由Source的<code>getWorkunits(SourceState)</code>生成的</li>
+<li>包含low watermark和high watermark的数据, 即摄取的数据的摄取范围</li>
+<li>包含Extractor，摄取器.</li>
+</ol>
+
+<pre><code class="language-java">
+public WorkUnit(SourceState state, Extract extract) {
+  // Values should only be null for deserialization
+  if (state != null) {
+    super.addAll(state);
+  }
+
+  if (extract != null) {
+    this.extract = extract;
+  } else {
+    this.extract = new Extract(null, null, null, null);
+  }
+}
+
+public void setLowWaterMark(long lowWaterMark) {
+  setProp(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY, lowWaterMark);
+}
+
+public void setHighWaterMark(long highWaterMark) {
+  setProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY, highWaterMark);
+}
+</code></pre>
+
+<p>WorkUnit由Source的getWorkunits生成, 主要是为了记录不同task应该摄取哪部分数据.</p>
+
+<h3 id="toc_7">3.2.MutliWorkUnit</h3>
+
+<p>MutliWorkUnit继承了WorkUnit, 其实质则是对多个WorkUnit进行了封装以便后续运行在一个task中, 如果MutliWorkUnit包含了所有的WorkUnits, 那么一个job就只会对应一个task。</p>
+
+<pre><code class="language-java">public class MultiWorkUnit extends WorkUnit {
+
+  private final List&lt;WorkUnit&gt; workUnits = Lists.newArrayList();
+
+  @Deprecated
+  public MultiWorkUnit() {
+    super();
+  }
+
+  * * *
+}
+</code></pre>
+
+<p>MutliWorkUnit的出现很好对source的partition进行了补充, 使得它在负载均衡上面得到了很好的提升。如果没有MutliWorkUnit, 那么mapreduce模式下由于partition的不均衡很容易造成数据倾斜. 而MutliWorkUnit的存在使得我们可以通过合并小的WorkUnit的平衡每个map的数据, 降低数据倾斜的风险。</p>
+
+<h2 id="toc_8">四. WorkUnitState, TaskState</h2>
+
+<h3 id="toc_9">4.1.WorkUnitState</h3>
+
+<p>WorkUnitState不但包含了WorkUnit的所有配置, 也包含了WorkUnit的运行状态以及非常重要的actual high watermark。</p>
+
+<pre><code class="language-java">public class WorkUnitState extends State {
+    public enum WorkingState {
+    PENDING,
+    RUNNING,
+    SUCCESSFUL,
+    COMMITTED,
+    FAILED,
+    CANCELLED
+    }
+    private WorkUnit workunit;
+    public WorkUnitState(WorkUnit workUnit) {
+        this.workunit = workUnit;
+    }
+    public void setActualHighWatermark(Watermark watermark) {
+        setProp(ConfigurationKeys.WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY, watermark.toJson().toString());
+    }
+}
+</code></pre>
+
+<blockquote>
+<p>setActualHighWatermark 是在Extractor中初始化时候设置的，它必须赶在readRecord调用前进行set。</p>
+</blockquote>
+
+<h3 id="toc_10">4.2.TaskState</h3>
+
+<p>TaskState在WorkUnitState的基础上加入了task有关的一些信息, 比如task id, task name, start time, end time 等。生命周期贯穿了整个task，类似于job task, 不同之处前者在task level，后者在task level。因此TaskState也会在metrix存储相应的运行信息。</p>
+
+<pre><code class="language-java">
+public class TaskState extends WorkUnitState {
+    * * *
+    private String jobId;
+    private String taskId;
+    private long startTime = 0;
+    private long endTime = 0;
+    private long duration;
+
+    public TaskState(WorkUnitState workUnitState) {
+        // Since getWorkunit() returns an immutable WorkUnit object,
+        // the WorkUnit object in this object is also immutable.
+        super(workUnitState.getWorkunit());
+        addAll(workUnitState);
+        this.jobId = workUnitState.getProp(ConfigurationKeys.JOB_ID_KEY);
+        this.taskId = workUnitState.getProp(ConfigurationKeys.TASK_ID_KEY);
+        this.setId(this.taskId);
+    }
+
+    * * *
+}
+
+</code></pre>
+
+<h2 id="toc_11">五. Extract</h2>
+
+<p>Extract对接需要摄入的数据源, 它包含了需要摄入的配置信息, 比如摄入方式(snapshot-only, append-only, snapshot-append), 主键(primary keys), 需要增量的键(delta fields)等等。</p>
+
+<p>相同namespace和table下的Extracts必须有不同的extract ID。 一个或多个WorkUnits可以分享同一个extract ID。 具有相同的extract ID的WorkUnits可以视为同一个Extract的组成部分, 以便使用相同的发布策略。</p>
+
+<h2 id="toc_12">六. 运行过程转换</h2>
+
+<p>本小节主要介绍这些state在gobblin运行过程中的关系:</p>
+
+<ul>
+<li>当job开始运行时候, job launch首先会创建JobState, 它包含两部分信息, 1) 所有job的配置文件; 2) 上一个job的JobState / DatasetState, 以及其他的配置, 如每个JobState／DatasetState的 actual high watermark等</li>
+<li>Job Launcher 会把JobState(以SourceState的形势)传给Souce, Source根据JobState来创建WorkUnits。当创建WorkUnits时候, JobState不会立马就加载进WorkUnits, 而是在task执行时候才会完成加载。这是因为当laucher运行在单个JVM时候,如果创建大量的WorkUnits且都是JobState copy有可能会出现oom。</li>
+<li>job launcher 准备开始运行WorkUnits。</li>
+<li>在standalone模式中, job launcher会把JobState添加到每一个WorkUnit, 如果配置已经在WorkUnit中则不会覆盖。对于每一个WorkUnit， job launcher都会创建一个task去运行WorkUnit，并提交所有task到TaskExecutor运行在同一个线程池中。</li>
+<li>在MR模式下, job laucher会序列化JobState和每一个WorkUnit, 并被mapper所获取。</li>
+</ul>
+
+<p>此时 job launcher 会等待所有task完成。</p>
+
+<ul>
+<li>每个task对应一个workunit, 每个task包含一个TaskState。初始化时候，TaskState获取JobState以及workunit所有配置, 运行过程中, 更多的Extractor, Converter 和 Writer的配置, 比如actual high watermark, 会通过Extractor加入到TaskState。</li>
+<li>当所有Task完成时候, TaskState会根据dataset.urn创建DatasetStates。当dataset的数据提交时候, job launcher就会存下DatasetState。 如果没有dataset.urn, 那么只会有单个DatasetState，并根据提交策略进行提交。</li>
+</ul>
+
+<h2 id="toc_13">七. 总结</h2>
+
+<p>最后说下我的理解:</p>
+
+<ul>
+<li>WorkUnitState包含了WorkUnit的配置以及task运行的状态数据.</li>
+<li>TaskState包含了WorkUnitState和Task的基本信息(id,start time, end time)</li>
+<li>JobState包含配置文件配置, 所有task的TaskState，以及job的基础信息(id, start time, end time)。</li>
+<li>在初始阶段, WorkUnits由JobState生成。</li>
+</ul>
+
+<p>本文完</p>
+
+<ul>
+<li>原创文章，转载请注明： 转载自<a href="http://lamborryan.github.io">Lamborryan</a>，作者：<a href="http://lamborryan.github.io/about/">Ruan Chengfeng</a></li>
+<li>本文链接地址：<a href="http://lamborryan.github.io/gobblin-state">http://lamborryan.github.io/gobblin-state</a></li>
+<li>本文基于<a href="http://creativecommons.org/licenses/by/2.5/cn/">署名2.5中国大陆许可协议</a>发布，欢迎转载、演绎或用于商业目的，但是必须保留本文署名和文章链接。 如您有任何疑问或者授权方面的协商，请邮件联系我。</li>
+</ul>
+
+			</div>
+
+		
+	  
+		<footer>
+		 <p class="meta">
+
+			<strong>Categories:</strong>&nbsp; 
+			<span class="categories">
+			
+			    <a class='category' href='Gobblin.html'>Gobblin</a>&nbsp;
+			 
+			</span>
+		    </p>
+		    <p class="meta">
+		      
+		 </p>
+	    
+		<div class="sharing">
+		  
+          
+
+          
+
+		</div>
+
+	    <p class="meta">
+	    
+	        <a class="basic-alignment left" href="15155071664887.html" 
+	        title="Previous Post: Gobblin系列(7)之Source源码分析">&laquo; Gobblin系列(7)之Source源码分析</a>
+	    
+	    
+	        <a class="basic-alignment right" href="15155067914960.html" 
+	        title="Next Post: Gobblin系列(5)之Writer源码分析">Gobblin系列(5)之Writer源码分析 &raquo;</a>
+	    
+	    </p>
+	  </footer>
+	</article>
+</div>
+ <aside class="sidebar"> 
+
+	<section>
+	  <h1>Categories</h1>
+	  <ul id="recent_posts">
+	  
+	      <li class="post">
+	        <a href="%E6%95%B0%E4%BB%93%E5%BB%BA%E6%A8%A1.html"><strong>数仓建模&nbsp;(5)</strong></a>
+	         <p class="cat-children-p"> 
+	        
+	        	<a href="StarSchema%E7%AC%94%E8%AE%B0.html">StarSchema笔记&nbsp;(4)</a>&nbsp;&nbsp;
+	        
+	        	<a href="Data%20Vault.html">Data Vault&nbsp;(1)</a>&nbsp;&nbsp;
+	        
+	         </p> 
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%BC%80%E6%BA%90%E6%8A%80%E6%9C%AF.html"><strong>开源技术&nbsp;(10)</strong></a>
+	         <p class="cat-children-p"> 
+	        
+	        	<a href="Apache%20Calcite.html">Apache Calcite&nbsp;(1)</a>&nbsp;&nbsp;
+	        
+	        	<a href="Gobblin.html">Gobblin&nbsp;(8)</a>&nbsp;&nbsp;
+	        
+	        	<a href="Solr.html">Solr&nbsp;(1)</a>&nbsp;&nbsp;
+	        
+	         </p> 
+	      </li>
+	   
+	  </ul>
+	</section>
+	<section>
+	  <h1>Recent Posts</h1>
+	  <ul id="recent_posts">
+	  
+	      
+		      <li class="post">
+		        <a href="15155074940397.html">Solr4.8.0源码分析汇总</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="15155073098227.html">Gobblin系列(8)之Extractor源码分析</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="15155071664887.html">Gobblin系列(7)之Source源码分析</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="15155068855798.html">Gobblin系列(6)之State</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="15155067914960.html">Gobblin系列(5)之Writer源码分析</a>
+		      </li>
+	     
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	   
+	  </ul>
+	</section>
+	
+</aside> </div></div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2014 -  -
+  <span class="credit">Powered by <a target="_blank" href="http://www.mweb.im">MWeb</a> &nbsp;&nbsp; Theme by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+
+  
+    
+
+
+
+
+</body>
+</html>
